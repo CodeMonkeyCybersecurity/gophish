@@ -1,12 +1,8 @@
 package models
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -72,13 +68,6 @@ type Response struct {
 	Message string      `json:"message"`
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`
-}
-
-// Copy of auth.GenerateSecureKey to prevent cyclic import with auth library
-func generateSecureKey() string {
-	k := make([]byte, 32)
-	io.ReadFull(rand.Reader, k)
-	return fmt.Sprintf("%x", k)
 }
 
 func chooseDBDriver(name, openStr string) goose.DBDriver {
@@ -151,7 +140,7 @@ func Setup(c *config.Config) error {
 		switch conf.DBName {
 		case "mysql":
 			rootCertPool := x509.NewCertPool()
-			pem, err := ioutil.ReadFile(conf.DBSSLCaPath)
+			pem, err := os.ReadFile(conf.DBSSLCaPath)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -176,7 +165,7 @@ func Setup(c *config.Config) error {
 		if err == nil {
 			break
 		}
-		if err != nil && i >= MaxDatabaseConnectionAttempts {
+		if i >= MaxDatabaseConnectionAttempts {
 			log.Error(err)
 			return err
 		}
@@ -187,10 +176,6 @@ func Setup(c *config.Config) error {
 	db.LogMode(false)
 	db.SetLogger(log.Logger)
 	db.DB().SetMaxOpenConns(1)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
 	// Migrate up to the latest version
 	err = goose.RunMigrationsOnDb(migrateConf, migrateConf.MigrationsDir, latest, db.DB())
 	if err != nil {
