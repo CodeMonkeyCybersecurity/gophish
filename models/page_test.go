@@ -1,7 +1,7 @@
 package models
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -151,7 +151,7 @@ func TestPageImportSaveRenderCycle(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Step 1: Read problematic HTML (simulating import)
-			htmlContent, err := ioutil.ReadFile(tc.htmlFile)
+			htmlContent, err := os.ReadFile(tc.htmlFile)
 			if err != nil {
 				t.Fatalf("Failed to read test file: %v", err)
 			}
@@ -224,8 +224,8 @@ func TestPageFormFieldProcessing(t *testing.T) {
 			captureCredentials: true,
 			capturePasswords:   true,
 			expectedChanges: []string{
-				`action=""`,           // Form actions should be empty
-				`name="password"`,     // Password fields should keep name attribute
+				`action=""`,       // Form actions should be empty
+				`name="password"`, // Password fields should keep name attribute
 			},
 		},
 		{
@@ -233,8 +233,8 @@ func TestPageFormFieldProcessing(t *testing.T) {
 			captureCredentials: true,
 			capturePasswords:   false,
 			expectedChanges: []string{
-				`action=""`,                      // Form actions should be empty
-				`type="password"`,                // Password fields should exist
+				`action=""`,                        // Form actions should be empty
+				`type="password"`,                  // Password fields should exist
 				`<input type="password" required>`, // But without name attribute
 			},
 		},
@@ -243,7 +243,7 @@ func TestPageFormFieldProcessing(t *testing.T) {
 			captureCredentials: false,
 			capturePasswords:   false,
 			expectedChanges: []string{
-				`action=""`,                   // Form actions should be empty
+				`action=""`,                     // Form actions should be empty
 				`<input type="email" required>`, // Input fields without name attributes
 				`<input type="text">`,
 				`<input type="password" required>`,
@@ -411,7 +411,7 @@ func TestPageValidationEdgeCases(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected no validation error but got: %v", err)
 				}
-				
+
 				// For the "capture passwords implies capture credentials" test
 				if tt.page.CapturePasswords && !tt.page.CaptureCredentials {
 					t.Error("Expected CaptureCredentials to be set to true when CapturePasswords is true")
@@ -427,11 +427,11 @@ func sanitizeTemplateContentForTest(html string) string {
 	// Escape Go template delimiters {{ and }}
 	html = strings.ReplaceAll(html, "{{", "&#123;&#123;")
 	html = strings.ReplaceAll(html, "}}", "&#125;&#125;")
-	
+
 	// Also handle Django/Jinja2 template patterns for completeness
 	html = strings.ReplaceAll(html, "{%", "&#123;%")
 	html = strings.ReplaceAll(html, "%}", "%&#125;")
-	
+
 	return html
 }
 

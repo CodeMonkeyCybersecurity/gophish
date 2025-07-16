@@ -57,12 +57,12 @@ func FuzzTemplatePatterns(f *testing.F) {
 					t.Errorf("sanitizeTemplateContent panicked with input %q: %v", input, r)
 				}
 			}()
-			
+
 			sanitized := sanitizeTemplateContentFuzz(input)
-			
+
 			// Property: Sanitized output should not contain unescaped template delimiters
 			if strings.Contains(sanitized, "{{") || strings.Contains(sanitized, "}}") ||
-			   strings.Contains(sanitized, "{%") || strings.Contains(sanitized, "%}") {
+				strings.Contains(sanitized, "{%") || strings.Contains(sanitized, "%}") {
 				t.Errorf("sanitizeTemplateContent failed to escape all delimiters in input %q", input)
 			}
 		}()
@@ -74,7 +74,7 @@ func FuzzTemplatePatterns(f *testing.F) {
 					t.Errorf("ValidateTemplate panicked with input %q: %v", input, r)
 				}
 			}()
-			
+
 			// Validation may return error, but shouldn't panic
 			_ = models.ValidateTemplate(input)
 		}()
@@ -83,11 +83,11 @@ func FuzzTemplatePatterns(f *testing.F) {
 
 // FuzzTemplateGeneration generates random template-like patterns for testing
 func FuzzTemplateGeneration(f *testing.F) {
-	f.Fuzz(func(t *testing.T, 
-		openDelim string, 
-		closeDelim string, 
-		content string, 
-		operator string, 
+	f.Fuzz(func(t *testing.T,
+		openDelim string,
+		closeDelim string,
+		content string,
+		operator string,
 		value string,
 	) {
 		// Skip invalid UTF-8
@@ -99,7 +99,7 @@ func FuzzTemplateGeneration(f *testing.F) {
 
 		// Generate template-like pattern
 		pattern := openDelim + content + operator + value + closeDelim
-		
+
 		// Test that our functions handle arbitrary patterns gracefully
 		func() {
 			defer func() {
@@ -107,10 +107,10 @@ func FuzzTemplateGeneration(f *testing.F) {
 					t.Errorf("Functions panicked with generated pattern %q: %v", pattern, r)
 				}
 			}()
-			
+
 			// Test sanitization
 			sanitized := sanitizeTemplateContentFuzz(pattern)
-			
+
 			// Test validation
 			_ = models.ValidateTemplate(pattern)
 			_ = models.ValidateTemplate(sanitized)
@@ -129,7 +129,7 @@ func FuzzLargeTemplatePatterns(f *testing.F) {
 
 	for _, seed := range seeds {
 		f.Add(seed, 10)   // Small repetition
-		f.Add(seed, 100)  // Medium repetition  
+		f.Add(seed, 100)  // Medium repetition
 		f.Add(seed, 1000) // Large repetition
 	}
 
@@ -145,7 +145,7 @@ func FuzzLargeTemplatePatterns(f *testing.F) {
 
 		// Generate large input
 		largeInput := strings.Repeat(pattern, repetitions)
-		
+
 		// Test with timeout to catch infinite loops
 		done := make(chan bool, 1)
 		go func() {
@@ -155,11 +155,11 @@ func FuzzLargeTemplatePatterns(f *testing.F) {
 				}
 				done <- true
 			}()
-			
+
 			// Test sanitization performance
 			sanitized := sanitizeTemplateContentFuzz(largeInput)
-			
-			// Test validation performance  
+
+			// Test validation performance
 			_ = models.ValidateTemplate(largeInput)
 			_ = models.ValidateTemplate(sanitized)
 		}()
@@ -180,7 +180,7 @@ func FuzzNestedTemplatePatterns(f *testing.F) {
 		if !utf8.ValidString(content) {
 			t.Skip("Skipping invalid UTF-8 input")
 		}
-		
+
 		// Limit depth to prevent excessive memory usage
 		if depth < 0 || depth > 100 {
 			t.Skip("Skipping invalid depth")
@@ -199,7 +199,7 @@ func FuzzNestedTemplatePatterns(f *testing.F) {
 					t.Errorf("Functions panicked with nested pattern (depth %d): %v", depth, r)
 				}
 			}()
-			
+
 			sanitized := sanitizeTemplateContentFuzz(pattern)
 			_ = models.ValidateTemplate(pattern)
 			_ = models.ValidateTemplate(sanitized)
@@ -211,16 +211,16 @@ func FuzzNestedTemplatePatterns(f *testing.F) {
 func FuzzUnicodeTemplatePatterns(f *testing.F) {
 	// Seed with various Unicode ranges
 	unicodeSeeds := []string{
-		"🚀",     // Emoji
-		"中文",    // Chinese
-		"العربية", // Arabic  
+		"🚀",       // Emoji
+		"中文",      // Chinese
+		"العربية", // Arabic
 		"русский", // Russian
-		"हिन्दी",   // Hindi
-		"한국어",    // Korean
-		"🎉🔥💯",  // Multiple emoji
-		"café",   // Latin with accents
-		"Москва", // Cyrillic
-		"東京",    // Japanese
+		"हिन्दी",  // Hindi
+		"한국어",     // Korean
+		"🎉🔥💯",     // Multiple emoji
+		"café",    // Latin with accents
+		"Москва",  // Cyrillic
+		"東京",      // Japanese
 	}
 
 	for _, unicode := range unicodeSeeds {
@@ -248,7 +248,7 @@ func FuzzUnicodeTemplatePatterns(f *testing.F) {
 						t.Errorf("Functions panicked with Unicode pattern %q: %v", pattern, r)
 					}
 				}()
-				
+
 				sanitized := sanitizeTemplateContentFuzz(pattern)
 				_ = models.ValidateTemplate(pattern)
 				_ = models.ValidateTemplate(sanitized)
@@ -262,7 +262,7 @@ func FuzzBinaryDataWithTemplates(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Convert to string (may contain invalid UTF-8)
 		input := string(data)
-		
+
 		// Mix with template patterns
 		patterns := []string{
 			input + "{{var = 'value'}}",
@@ -278,7 +278,7 @@ func FuzzBinaryDataWithTemplates(f *testing.F) {
 						t.Errorf("Functions panicked with binary+template pattern: %v", r)
 					}
 				}()
-				
+
 				// These functions should handle arbitrary input gracefully
 				sanitized := sanitizeTemplateContentFuzz(pattern)
 				_ = models.ValidateTemplate(pattern)
@@ -326,7 +326,7 @@ func FuzzRealWorldHTMLPatterns(f *testing.F) {
 						t.Errorf("Functions panicked with HTML context %q: %v", context, r)
 					}
 				}()
-				
+
 				sanitized := sanitizeTemplateContentFuzz(context)
 				_ = models.ValidateTemplate(context)
 				_ = models.ValidateTemplate(sanitized)
@@ -340,18 +340,18 @@ func sanitizeTemplateContentFuzz(html string) string {
 	// Escape Go template delimiters {{ and }}
 	html = strings.ReplaceAll(html, "{{", "&#123;&#123;")
 	html = strings.ReplaceAll(html, "}}", "&#125;&#125;")
-	
+
 	// Also handle Django/Jinja2 template patterns for completeness
 	html = strings.ReplaceAll(html, "{%", "&#123;%")
 	html = strings.ReplaceAll(html, "%}", "%&#125;")
-	
+
 	return html
 }
 
 // Continuous fuzzing benchmark
 func BenchmarkFuzzTemplatePatterns(b *testing.B) {
 	rand.Seed(time.Now().UnixNano())
-	
+
 	// Generate random template patterns for benchmarking
 	patterns := make([]string, 1000)
 	for i := range patterns {
@@ -361,10 +361,10 @@ func BenchmarkFuzzTemplatePatterns(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pattern := patterns[i%len(patterns)]
-		
+
 		// Test sanitization performance
 		sanitized := sanitizeTemplateContentFuzz(pattern)
-		
+
 		// Test validation performance
 		_ = models.ValidateTemplate(pattern)
 		_ = models.ValidateTemplate(sanitized)
