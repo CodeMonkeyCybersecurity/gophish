@@ -2,7 +2,6 @@ package models
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/mail"
 	"net/url"
@@ -112,7 +111,7 @@ func validateTemplateContent(text string) error {
 			if strings.Contains(line, "{{") && strings.Contains(line, "=") {
 				// Additional check: ensure it's not a valid Go template assignment
 				if !strings.Contains(line, ":=") && !strings.Contains(line, "eq") {
-					return errors.New(fmt.Sprintf("template syntax error on line %d: '%s' - this appears to be non-Go template syntax (CSS, JSON, or other framework). Consider escaping {{}} braces in imported HTML", i+1, strings.TrimSpace(line)))
+					return fmt.Errorf("template syntax error on line %d: '%s' - this appears to be non-Go template syntax (CSS, JSON, or other framework). Consider escaping {{}} braces in imported HTML", i+1, strings.TrimSpace(line))
 				}
 			}
 		}
@@ -127,7 +126,7 @@ func ValidateTemplate(text string) error {
 	if err := validateTemplateContent(text); err != nil {
 		return err
 	}
-	
+
 	vc := ValidationContext{
 		FromAddress: "foo@bar.com",
 		BaseURL:     "http://example.com",
