@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -91,39 +91,39 @@ func TestSanitizeTemplateContentLargeInput(t *testing.T) {
 	// Create a large HTML document with many template patterns
 	var builder strings.Builder
 	builder.WriteString("<html><head><style>")
-	
+
 	// Add 1000 CSS custom properties with template patterns
 	for i := 0; i < 1000; i++ {
 		builder.WriteString(fmt.Sprintf("--var%d: {{value%d = 'test%d'}}; ", i, i, i))
 	}
-	
+
 	builder.WriteString("</style><script>")
-	
+
 	// Add 1000 JavaScript template patterns
 	for i := 0; i < 1000; i++ {
 		builder.WriteString(fmt.Sprintf("var config%d = {{key%d = 'value%d'}}; ", i, i, i))
 	}
-	
+
 	builder.WriteString("</script></head><body>")
-	
+
 	// Add Django-style templates
 	for i := 0; i < 500; i++ {
 		builder.WriteString(fmt.Sprintf("{%% if condition%d = true %%}content%d{%% endif %%} ", i, i))
 	}
-	
+
 	builder.WriteString("</body></html>")
-	
+
 	input := builder.String()
-	
+
 	// Test that it doesn't panic and produces expected output
 	result := sanitizeTemplateContent(input)
-	
+
 	// Verify that all patterns were escaped
-	if strings.Contains(result, "{{") || strings.Contains(result, "}}") || 
-	   strings.Contains(result, "{%") || strings.Contains(result, "%}") {
+	if strings.Contains(result, "{{") || strings.Contains(result, "}}") ||
+		strings.Contains(result, "{%") || strings.Contains(result, "%}") {
 		t.Error("sanitizeTemplateContent() failed to escape all template patterns in large input")
 	}
-	
+
 	// Verify expected escapes are present
 	if !strings.Contains(result, "&#123;&#123;") || !strings.Contains(result, "&#125;&#125;") {
 		t.Error("sanitizeTemplateContent() failed to apply expected escapes in large input")
@@ -134,16 +134,16 @@ func TestSanitizeTemplateContentLargeInput(t *testing.T) {
 func TestSanitizeTemplateContentPropertyBased(t *testing.T) {
 	property := func(input string) bool {
 		result := sanitizeTemplateContent(input)
-		
+
 		// Property: Result should not contain unescaped template delimiters
-		hasUnescapedTemplates := strings.Contains(result, "{{") || 
-			strings.Contains(result, "}}") || 
-			strings.Contains(result, "{%") || 
+		hasUnescapedTemplates := strings.Contains(result, "{{") ||
+			strings.Contains(result, "}}") ||
+			strings.Contains(result, "{%") ||
 			strings.Contains(result, "%}")
-		
+
 		return !hasUnescapedTemplates
 	}
-	
+
 	if err := quick.Check(property, &quick.Config{MaxCount: 1000}); err != nil {
 		t.Errorf("Property-based test failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestImportSiteHandlerSuccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Read test HTML file
-			htmlContent, err := ioutil.ReadFile(tt.htmlFile)
+			htmlContent, err := os.ReadFile(tt.htmlFile)
 			if err != nil {
 				t.Fatalf("Failed to read test file %s: %v", tt.htmlFile, err)
 			}
@@ -207,9 +207,9 @@ func TestImportSiteHandlerSuccess(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/api/import/site", bytes.NewReader(reqJSON))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			w := httptest.NewRecorder()
-			
+
 			// Create server instance and call handler
 			server := &Server{}
 			server.ImportSite(w, req)
@@ -234,11 +234,11 @@ func TestImportSiteHandlerSuccess(t *testing.T) {
 			if tt.expectEscape {
 				originalHasTemplates := strings.Contains(string(htmlContent), "{{") || strings.Contains(string(htmlContent), "{%")
 				responseHasTemplates := strings.Contains(response.HTML, "{{") || strings.Contains(response.HTML, "{%")
-				
+
 				if originalHasTemplates && responseHasTemplates {
 					t.Error("Expected template patterns to be escaped in response")
 				}
-				
+
 				// Verify escaped patterns are present
 				if originalHasTemplates && (!strings.Contains(response.HTML, "&#123;&#123;") && !strings.Contains(response.HTML, "&#123;%")) {
 					t.Error("Expected escaped template patterns in response")
@@ -309,9 +309,9 @@ func TestImportSiteHandlerErrors(t *testing.T) {
 			if tt.method == "POST" {
 				req.Header.Set("Content-Type", "application/json")
 			}
-			
+
 			w := httptest.NewRecorder()
-			
+
 			server := &Server{}
 			server.ImportSite(w, req)
 
@@ -367,9 +367,9 @@ func TestImportSiteFormProcessing(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/import/site", bytes.NewReader(reqJSON))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
-	
+
 	server := &Server{}
 	server.ImportSite(w, req)
 
@@ -439,7 +439,7 @@ func BenchmarkSanitizeTemplateContent(b *testing.B) {
 func BenchmarkImportSiteHandler(b *testing.B) {
 	// Create test HTML content
 	htmlContent := `<!DOCTYPE html><html><head><style>:root{--color:{{theme='blue'}}}</style></head><body><form><input name="test"></form></body></html>`
-	
+
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(htmlContent))
@@ -456,12 +456,12 @@ func BenchmarkImportSiteHandler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("POST", "/api/import/site", bytes.NewReader(reqJSON))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
-		
+
 		server := &Server{}
 		server.ImportSite(w, req)
-		
+
 		if w.Code != http.StatusOK {
 			b.Fatalf("Handler failed with status %d", w.Code)
 		}
