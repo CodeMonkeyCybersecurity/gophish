@@ -1,0 +1,170 @@
+{
+  "_comment": "Gophish HERA V3 Production Configuration",
+  "_comment_": "This is a production-ready configuration template",
+  "_security": "CRITICAL: Update all values marked with YOUR_* before deployment",
+
+  "admin_server": {
+    "listen_url": "0.0.0.0:3333",
+    "use_tls": true,
+    "cert_path": "/etc/gophish/certs/gophish_admin.crt",
+    "key_path": "/etc/gophish/certs/gophish_admin.key"
+  },
+
+  "phish_server": {
+    "listen_url": "0.0.0.0:80"
+  },
+
+  "_comment_db": "Database Configuration - Use MySQL or PostgreSQL in production",
+  "_comment_db_": "DO NOT use SQLite for production deployments",
+  "db_name": "mysql",
+  "db_path": "YOUR_DB_USER:YOUR_DB_PASSWORD@tcp(YOUR_DB_HOST:3306)/gophish?charset=utf8&parseTime=True&loc=UTC",
+
+  "migrations_prefix": "db/db_",
+
+  "contact_address": "security@YOUR_DOMAIN.com",
+
+  "_comment_logging": "Logging Configuration",
+  "logging": {
+    "filename": "/var/log/gophish/gophish.log",
+    "level": "info"
+  },
+
+  "_comment_session": "Session Configuration - CRITICAL SECURITY SETTINGS",
+  "_security_session": "Generate keys with: go run scripts/generate-session-keys.go",
+  "_security_session_": "NEVER commit these keys to version control",
+  "_security_session__": "Store in environment variables or secure vault",
+  "_security_session___": "Rotate keys quarterly",
+  "session_signing_key": "YOUR_64_BYTE_BASE64_SIGNING_KEY_HERE",
+  "session_encryption_key": "YOUR_32_BYTE_BASE64_ENCRYPTION_KEY_HERE",
+
+  "_comment_cors": "CORS Configuration for V3 - Production Settings",
+  "_security_cors": "Use exact origins in production (avoid wildcards when possible)",
+  "_security_cors_": "Only add trusted origins to this list",
+  "cors_origins": [
+    "https://admin.YOUR_DOMAIN.com",
+    "https://dashboard.YOUR_DOMAIN.com"
+  ],
+  "cors_cache_ttl": "5m",
+  "cors_cache_size": 1000,
+
+  "_comment_cors_wildcard": "Example wildcard patterns (use with caution)",
+  "_example_cors_wildcard": [
+    "https://*.api.YOUR_DOMAIN.com",
+    "https://*.staging.YOUR_DOMAIN.com"
+  ],
+
+  "_comment_passwords": "Common Password Protection",
+  "_security_passwords": "Use a comprehensive password list (1M+ passwords)",
+  "_download_passwords": "Download from: https://github.com/danielmiessler/SecLists",
+  "common_passwords_file": "/etc/gophish/data/common-passwords.txt",
+
+  "_comment_production": "Production-Specific Settings",
+  "dev_mode": false,
+  "allow_unsafe_ssl": false,
+
+  "_deployment_checklist": {
+    "security": [
+      "✅ Generated unique session keys",
+      "✅ Session keys stored securely (not in git)",
+      "✅ TLS certificates valid and configured",
+      "✅ Database credentials secured",
+      "✅ CORS origins reviewed and minimized",
+      "✅ Common password list loaded (1M+ passwords)",
+      "✅ Logging configured to secure location",
+      "✅ File permissions set correctly (600 for config)"
+    ],
+    "infrastructure": [
+      "✅ Database: MySQL/PostgreSQL configured",
+      "✅ Database: Connection pooling enabled",
+      "✅ Database: Backup procedures in place",
+      "✅ Load balancer: Health checks configured (/health)",
+      "✅ Monitoring: Prometheus scraping metrics",
+      "✅ Monitoring: Grafana dashboard imported",
+      "✅ Monitoring: Alert rules configured",
+      "✅ Monitoring: Alertmanager configured"
+    ],
+    "testing": [
+      "✅ Run: ./scripts/test-hera-v3.sh",
+      "✅ Deployed to staging first",
+      "✅ Load testing completed",
+      "✅ Security scanning completed (gosec, govulncheck)",
+      "✅ Backup and restore tested"
+    ],
+    "deployment": [
+      "✅ Review: deployments/PRODUCTION_CHECKLIST.md",
+      "✅ Rollback plan prepared",
+      "✅ Team notified of deployment window",
+      "✅ Monitoring active and verified",
+      "✅ Use: deployments/zero-downtime-deploy.sh"
+    ]
+  },
+
+  "_monitoring_endpoints": {
+    "health_check": "http://localhost:3333/health",
+    "metrics_json": "http://localhost:9090/metrics",
+    "metrics_prometheus": "http://localhost:9090/metrics/prometheus",
+    "note": "Metrics on separate port for security"
+  },
+
+  "_database_tuning": {
+    "mysql_recommended": {
+      "max_open_conns": 100,
+      "max_idle_conns": 10,
+      "conn_max_lifetime": "1h"
+    },
+    "postgres_recommended": {
+      "max_open_conns": 100,
+      "max_idle_conns": 10,
+      "conn_max_lifetime": "1h"
+    }
+  },
+
+  "_security_recommendations": {
+    "tls": {
+      "min_version": "TLS 1.2",
+      "recommended_ciphers": [
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+      ]
+    },
+    "session": {
+      "max_age": "5 days",
+      "secure": true,
+      "http_only": true,
+      "same_site": "Strict"
+    },
+    "cors": {
+      "recommendation": "Use exact origins when possible",
+      "wildcard_caution": "Only use wildcards for trusted subdomains",
+      "cache_ttl": "5 minutes (balance security and performance)"
+    }
+  },
+
+  "_operation": {
+    "logs": {
+      "location": "/var/log/gophish/",
+      "rotation": "daily",
+      "retention": "30 days",
+      "permissions": "640 (user:group readable, not world-readable)"
+    },
+    "backups": {
+      "database": "Daily full + hourly incremental",
+      "config": "Before each deployment",
+      "verification": "Weekly restore test"
+    },
+    "monitoring": {
+      "health_check_interval": "10 seconds",
+      "metrics_scrape_interval": "30 seconds",
+      "alert_evaluation_interval": "1 minute"
+    }
+  },
+
+  "_contacts": {
+    "primary_oncall": "YOUR_ONCALL_EMAIL",
+    "secondary_oncall": "YOUR_BACKUP_EMAIL",
+    "security_team": "YOUR_SECURITY_TEAM_EMAIL",
+    "pagerduty": "YOUR_PAGERDUTY_KEY"
+  }
+}
