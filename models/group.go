@@ -7,7 +7,7 @@ import (
 	"time"
 
 	log "github.com/gophish/gophish/logger"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,7 +18,7 @@ type Group struct {
 	UserId       int64     `json:"-"`
 	Name         string    `json:"name"`
 	ModifiedDate time.Time `json:"modified_date"`
-	Targets      []Target  `json:"targets" sql:"-"`
+	Targets      []Target  `json:"targets" gorm:"-"`
 }
 
 // GroupSummaries is a struct representing the overview of Groups.
@@ -319,14 +319,29 @@ func insertTargetIntoGroup(tx *gorm.DB, t Target, gid int64) error {
 		}).Error("Invalid email")
 		return err
 	}
-	err := tx.Where(t).FirstOrCreate(&t).Error
+	// GORM v2: FirstOrCreate - first arg is WHERE condition, second is attributes to set on create
+	target := Target{
+		BaseRecipient: BaseRecipient{
+			Email: t.Email,
+		},
+	}
+	err := tx.FirstOrCreate(&target, Target{
+		BaseRecipient: BaseRecipient{
+			Email:     t.Email,
+			FirstName: t.FirstName,
+			LastName:  t.LastName,
+			Position:  t.Position,
+		},
+	}).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"email": t.Email,
 		}).Error(err)
 		return err
 	}
-	err = tx.Save(&GroupTarget{GroupId: gid, TargetId: t.Id}).Error
+	// Use the found/created target ID for the group-target association
+	// Use Create() instead of Save() as GroupTarget has no primary key (GORM v2 requirement)
+	err = tx.Create(&GroupTarget{GroupId: gid, TargetId: target.Id}).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"email": t.Email,
