@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gophish/gophish/audit"
 	"github.com/gophish/gophish/auth"
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -117,6 +118,22 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error creating user", err)
 			return
 		}
+		// Audit log: user created
+		currentUser := ctx.Get(r, "user").(models.User)
+		audit.Log(audit.AuditEvent{
+			EventType: audit.EventUserCreated,
+			UserID:    currentUser.Id,
+			Username:  currentUser.Username,
+			IPAddress: r.RemoteAddr,
+			UserAgent: r.Header.Get("User-Agent"),
+			Success:   true,
+			Message:   "User created: " + user.Username,
+			Details: map[string]interface{}{
+				"new_user_id":       user.Id,
+				"new_user_username": user.Username,
+				"new_user_role":     role.Slug,
+			},
+		})
 		JSONResponse(w, user, http.StatusOK)
 		return
 	}
@@ -155,6 +172,20 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Infof("Deleted user account for %s", existingUser.Username)
+		// Audit log: user deleted
+		audit.Log(audit.AuditEvent{
+			EventType: audit.EventUserDeleted,
+			UserID:    currentUser.Id,
+			Username:  currentUser.Username,
+			IPAddress: r.RemoteAddr,
+			UserAgent: r.Header.Get("User-Agent"),
+			Success:   true,
+			Message:   "User deleted: " + existingUser.Username,
+			Details: map[string]interface{}{
+				"deleted_user_id":       existingUser.Id,
+				"deleted_user_username": existingUser.Username,
+			},
+		})
 		JSONResponse(w, models.Response{Success: true, Message: "User deleted Successfully!"}, http.StatusOK)
 	case r.Method == "PUT":
 		ur := &userRequest{}
