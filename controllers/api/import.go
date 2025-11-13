@@ -75,7 +75,7 @@ func (as *Server) ImportEmail(w http.ResponseWriter, r *http.Request) {
 	if ir.ConvertLinks {
 		d, err := goquery.NewDocumentFromReader(bytes.NewReader(e.HTML))
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Error parsing email HTML", err)
 			return
 		}
 		d.Find("a").Each(func(i int, a *goquery.Selection) {
@@ -83,7 +83,7 @@ func (as *Server) ImportEmail(w http.ResponseWriter, r *http.Request) {
 		})
 		h, err := d.Html()
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error generating email HTML", err)
 			return
 		}
 		e.HTML = []byte(h)
@@ -127,7 +127,7 @@ func (as *Server) ImportSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err = cr.validate(); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid site import request", err)
 		return
 	}
 	restrictedDialer := dialer.Dialer()
@@ -140,13 +140,13 @@ func (as *Server) ImportSite(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{Transport: tr}
 	resp, err := client.Get(cr.URL)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		util.SafeJSONError(w, r, http.StatusBadRequest, "Error fetching site", err)
 		return
 	}
 	// Insert the base href tag to better handle relative resources
 	d, err := goquery.NewDocumentFromResponse(resp)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		util.SafeJSONError(w, r, http.StatusBadRequest, "Error parsing site HTML", err)
 		return
 	}
 	// Assuming we don't want to include resources, we'll need a base href
@@ -165,7 +165,7 @@ func (as *Server) ImportSite(w http.ResponseWriter, r *http.Request) {
 	})
 	h, err := d.Html()
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		util.SafeJSONError(w, r, http.StatusInternalServerError, "Error generating site HTML", err)
 		return
 	}
 	// Sanitize HTML to prevent Go template parsing errors from imported content

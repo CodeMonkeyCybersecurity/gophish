@@ -9,6 +9,7 @@ import (
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/util"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -40,16 +41,15 @@ func (as *Server) Templates(w http.ResponseWriter, r *http.Request) {
 		t.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PostTemplate(&t)
 		if err == models.ErrTemplateNameNotSpecified {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Template name not specified", err)
 			return
 		}
 		if err == models.ErrTemplateMissingParameter {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Template missing required parameter", err)
 			return
 		}
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error inserting template into database"}, http.StatusInternalServerError)
-			log.Error(err)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error inserting template into database", err)
 			return
 		}
 		JSONResponse(w, t, http.StatusCreated)
@@ -62,7 +62,7 @@ func (as *Server) Template(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	t, err := models.GetTemplate(id, ctx.Get(r, "user_id").(int64))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Template not found"}, http.StatusNotFound)
+		util.SafeJSONError(w, r, http.StatusNotFound, "Template not found", err)
 		return
 	}
 	switch {
@@ -71,7 +71,7 @@ func (as *Server) Template(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeleteTemplate(id, ctx.Get(r, "user_id").(int64))
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error deleting template"}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error deleting template", err)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Template deleted successfully!"}, http.StatusOK)
@@ -89,7 +89,7 @@ func (as *Server) Template(w http.ResponseWriter, r *http.Request) {
 		t.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PutTemplate(&t)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Failed to update template", err)
 			return
 		}
 		JSONResponse(w, t, http.StatusOK)

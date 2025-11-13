@@ -281,7 +281,7 @@ func TestImportSiteHandlerErrors(t *testing.T) {
 			method:         "POST",
 			requestBody:    cloneRequest{URL: ""},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "No URL Specified",
+			expectedError:  "Invalid site import request", // Sanitized error message (ADV-04)
 		},
 		{
 			name:           "Invalid URL",

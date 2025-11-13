@@ -9,6 +9,7 @@ import (
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/util"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -42,7 +43,7 @@ func (as *Server) Pages(w http.ResponseWriter, r *http.Request) {
 		p.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PostPage(&p)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error creating page", err)
 			return
 		}
 		JSONResponse(w, p, http.StatusCreated)
@@ -56,7 +57,7 @@ func (as *Server) Page(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	p, err := models.GetPage(id, ctx.Get(r, "user_id").(int64))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Page not found"}, http.StatusNotFound)
+		util.SafeJSONError(w, r, http.StatusNotFound, "Page not found", err)
 		return
 	}
 	switch {
@@ -65,7 +66,7 @@ func (as *Server) Page(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeletePage(id, ctx.Get(r, "user_id").(int64))
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error deleting page"}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error deleting page", err)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Page Deleted Successfully"}, http.StatusOK)
@@ -83,7 +84,7 @@ func (as *Server) Page(w http.ResponseWriter, r *http.Request) {
 		p.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PutPage(&p)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error updating page: " + err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error updating page", err)
 			return
 		}
 		JSONResponse(w, p, http.StatusOK)

@@ -9,6 +9,7 @@ import (
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/util"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -42,7 +43,7 @@ func (as *Server) SendingProfiles(w http.ResponseWriter, r *http.Request) {
 		s.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PostSMTP(&s)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error creating sending profile", err)
 			return
 		}
 		JSONResponse(w, s, http.StatusCreated)
@@ -56,7 +57,7 @@ func (as *Server) SendingProfile(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	s, err := models.GetSMTP(id, ctx.Get(r, "user_id").(int64))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "SMTP not found"}, http.StatusNotFound)
+		util.SafeJSONError(w, r, http.StatusNotFound, "Sending profile not found", err)
 		return
 	}
 	switch {
@@ -65,7 +66,7 @@ func (as *Server) SendingProfile(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeleteSMTP(id, ctx.Get(r, "user_id").(int64))
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error deleting SMTP"}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error deleting sending profile", err)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "SMTP Deleted Successfully"}, http.StatusOK)
@@ -81,14 +82,14 @@ func (as *Server) SendingProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		err = s.Validate()
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid sending profile configuration", err)
 			return
 		}
 		s.ModifiedDate = time.Now().UTC()
 		s.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PutSMTP(&s)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error updating page"}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error updating sending profile", err)
 			return
 		}
 		JSONResponse(w, s, http.StatusOK)

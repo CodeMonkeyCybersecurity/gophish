@@ -10,6 +10,7 @@ import (
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/util"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -70,7 +71,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "GET":
 		us, err := models.GetUsers()
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Failed to retrieve users", err)
 			return
 		}
 		JSONResponse(w, us, http.StatusOK)
@@ -79,27 +80,27 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		ur := &userRequest{}
 		err := json.NewDecoder(r.Body).Decode(ur)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid request data", err)
 			return
 		}
 		err = ur.Validate(nil)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid user data", err)
 			return
 		}
 		err = auth.CheckPasswordPolicy(ur.Password)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Password does not meet requirements", err)
 			return
 		}
 		hash, err := auth.GeneratePasswordHash(ur.Password)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error processing password", err)
 			return
 		}
 		role, err := models.GetRoleBySlug(ur.Role)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Invalid role specified", err)
 			return
 		}
 		user := models.User{
@@ -113,7 +114,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		}
 		err = models.PutUser(&user)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error creating user", err)
 			return
 		}
 		JSONResponse(w, user, http.StatusOK)
@@ -132,7 +133,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 	currentUser := ctx.Get(r, "user").(models.User)
 	hasSystem, err := currentUser.HasPermission(models.PermissionModifySystem)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		util.SafeJSONError(w, r, http.StatusInternalServerError, "Error checking permissions", err)
 		return
 	}
 	if !hasSystem && currentUser.Id != id {
@@ -150,7 +151,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeleteUser(id)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error deleting user", err)
 			return
 		}
 		log.Infof("Deleted user account for %s", existingUser.Username)
@@ -159,14 +160,12 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		ur := &userRequest{}
 		err = json.NewDecoder(r.Body).Decode(ur)
 		if err != nil {
-			log.Errorf("error decoding user request: %v", err)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid request data", err)
 			return
 		}
 		err = ur.Validate(&existingUser)
 		if err != nil {
-			log.Errorf("invalid user request received: %v", err)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Invalid user data", err)
 			return
 		}
 		existingUser.Username = ur.Username
@@ -179,7 +178,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		}
 		role, err := models.GetRoleBySlug(ur.Role)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Invalid role specified", err)
 			return
 		}
 		// If our user is trying to change the role of an admin, we need to
@@ -187,7 +186,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		if existingUser.Role.Slug == models.RoleAdmin && existingUser.Role.ID != role.ID {
 			err = models.EnsureEnoughAdmins()
 			if err != nil {
-				JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+				util.SafeJSONError(w, r, http.StatusInternalServerError, "Cannot modify last admin account", err)
 				return
 			}
 		}
@@ -206,12 +205,12 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		if ur.Password != "" {
 			err = auth.CheckPasswordPolicy(ur.Password)
 			if err != nil {
-				JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+				util.SafeJSONError(w, r, http.StatusBadRequest, "Password does not meet requirements", err)
 				return
 			}
 			hash, err := auth.GeneratePasswordHash(ur.Password)
 			if err != nil {
-				JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+				util.SafeJSONError(w, r, http.StatusInternalServerError, "Error processing password", err)
 				return
 			}
 			existingUser.Hash = hash
@@ -219,7 +218,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		existingUser.AccountLocked = ur.AccountLocked
 		err = models.PutUser(&existingUser)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error updating user", err)
 			return
 		}
 		JSONResponse(w, existingUser, http.StatusOK)
