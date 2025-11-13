@@ -262,6 +262,17 @@ func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 	}
 }
 
+// MaxBodySize limits the size of request bodies to prevent DoS attacks
+func MaxBodySize(maxSize int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set max bytes for request body
+			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // JSONError returns an error in JSON format with the given
 // status code and message
 func JSONError(w http.ResponseWriter, c int, m string) {
