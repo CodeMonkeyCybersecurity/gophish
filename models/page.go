@@ -74,6 +74,22 @@ func (p *Page) Validate() error {
 	if p.Name == "" {
 		return ErrPageNameNotSpecified
 	}
+
+	// XSS validation for page name
+	sanitizedName, err := ValidateAndSanitizeTemplateName(p.Name)
+	if err != nil {
+		return err
+	}
+	p.Name = sanitizedName
+
+	// Validate HTML content (permissive but logged)
+	if p.HTML != "" {
+		_, err = ValidateAndSanitizeHTMLContent(p.HTML)
+		if err != nil {
+			return err
+		}
+	}
+
 	// If the user specifies to capture passwords,
 	// we automatically capture credentials
 	if p.CapturePasswords && !p.CaptureCredentials {

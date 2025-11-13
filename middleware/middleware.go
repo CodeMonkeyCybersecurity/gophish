@@ -228,8 +228,11 @@ func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 		w.Header().Set("X-Frame-Options", "DENY")
 
 		// HTTP Strict Transport Security (HSTS) - only set if using HTTPS
+		// max-age=31536000: 1 year (recommended minimum)
+		// includeSubDomains: Apply to all subdomains
+		// preload: Allow inclusion in browser HSTS preload lists
 		if r.TLS != nil {
-			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
 
 		// Prevent MIME sniffing
