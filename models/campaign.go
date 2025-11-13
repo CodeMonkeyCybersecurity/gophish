@@ -2,10 +2,12 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
+	"github.com/gophish/gophish/validation"
 	"github.com/gophish/gophish/webhook"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -145,6 +147,22 @@ func (c *Campaign) Validate() error {
 	case !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate):
 		return ErrInvalidSendByDate
 	}
+
+	// Input validation: check campaign name
+	if err := validation.ValidateName(c.Name); err != nil {
+		return fmt.Errorf("campaign name: %w", err)
+	}
+	if err := validation.ValidateNoSQLInjection(c.Name); err != nil {
+		return fmt.Errorf("campaign name: %w", err)
+	}
+
+	// Input validation: check URL if provided
+	if c.URL != "" {
+		if err := validation.ValidateURL(c.URL); err != nil {
+			return fmt.Errorf("campaign URL: %w", err)
+		}
+	}
+
 	return nil
 }
 

@@ -70,7 +70,7 @@ func setupTest(t *testing.T) *testContext {
 	if err != nil {
 		t.Fatalf("error changing directories to setup asset discovery: %v", err)
 	}
-	createTestData(t)
+	createTestData()
 	return ctx
 }
 
@@ -82,12 +82,12 @@ func tearDown(t *testing.T, ctx *testContext) {
 	os.Chdir(ctx.origPath)
 }
 
-func createTestData(t *testing.T) {
+func createTestData() {
 	// Add a group
 	group := models.Group{Name: "Test Group"}
 	group.Targets = []models.Target{
-		models.Target{BaseRecipient: models.BaseRecipient{Email: "test1@example.com", FirstName: "First", LastName: "Example"}},
-		models.Target{BaseRecipient: models.BaseRecipient{Email: "test2@example.com", FirstName: "Second", LastName: "Example"}},
+		{BaseRecipient: models.BaseRecipient{Email: "test1@example.com", FirstName: "First", LastName: "Example"}},
+		{BaseRecipient: models.BaseRecipient{Email: "test2@example.com", FirstName: "Second", LastName: "Example"}},
 	}
 	group.UserId = 1
 	models.PostGroup(&group)

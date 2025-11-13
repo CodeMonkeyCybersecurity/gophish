@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -12,22 +13,23 @@ import (
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/util"
+	"github.com/gophish/gophish/validation"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
 
 // ErrUsernameTaken is thrown when a user attempts to register a username that is taken.
-var ErrUsernameTaken = errors.New("Username already taken")
+var ErrUsernameTaken = errors.New("username already taken")
 
 // ErrEmptyUsername is thrown when a user attempts to register a username that is taken.
-var ErrEmptyUsername = errors.New("No username provided")
+var ErrEmptyUsername = errors.New("no username provided")
 
 // ErrEmptyRole is throws when no role is provided when creating or modifying a user.
-var ErrEmptyRole = errors.New("No role specified")
+var ErrEmptyRole = errors.New("no role specified")
 
 // ErrInsufficientPermission is thrown when a user attempts to change an
 // attribute (such as the role) for which they don't have permission.
-var ErrInsufficientPermission = errors.New("Permission denied")
+var ErrInsufficientPermission = errors.New("permission denied")
 
 // userRequest is the payload which represents the creation of a new user.
 type userRequest struct {
@@ -45,6 +47,18 @@ func (ur *userRequest) Validate(existingUser *models.User) error {
 	case ur.Role == "":
 		return ErrEmptyRole
 	}
+
+	// Input validation: check username for dangerous patterns
+	if err := validation.ValidateLength(ur.Username, validation.MaxNameLength); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+	if err := validation.ValidateNoSQLInjection(ur.Username); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+	if err := validation.ValidateNoXSS(ur.Username); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+
 	// Verify that the username isn't already taken. We consider two cases:
 	// * We're creating a new user, in which case any match is a conflict
 	// * We're modifying a user, in which case any match with a different ID is
