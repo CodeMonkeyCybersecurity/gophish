@@ -41,6 +41,31 @@ func (t *Template) Validate() error {
 			return err
 		}
 	}
+
+	// XSS validation for template name
+	sanitizedName, err := ValidateAndSanitizeTemplateName(t.Name)
+	if err != nil {
+		return err
+	}
+	t.Name = sanitizedName
+
+	// XSS validation for subject line (same rules as name)
+	if t.Subject != "" {
+		sanitizedSubject, err := ValidateAndSanitizeTemplateName(t.Subject)
+		if err != nil {
+			return err
+		}
+		t.Subject = sanitizedSubject
+	}
+
+	// Validate HTML content (permissive but logged)
+	if t.HTML != "" {
+		_, err = ValidateAndSanitizeHTMLContent(t.HTML)
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := ValidateTemplate(t.HTML); err != nil {
 		return err
 	}

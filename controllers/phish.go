@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jordan-wright/unindexed"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrInvalidRequest is thrown when a request with an invalid structure is
@@ -163,10 +164,81 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/images/pixel.png")
 }
 
+// isReportOriginAllowed checks if an origin is allowed for email reporting
+func (ps *PhishingServer) isReportOriginAllowed(origin string) bool {
+	if origin == "" {
+		// No origin header - allow for backwards compatibility (direct access, curl, etc.)
+		return true
+	}
+
+	allowedOrigins := ps.config.AllowedReportOrigins
+
+	// Check against configured allowed origins
+	for _, allowed := range allowedOrigins {
+		// Exact match
+		if origin == allowed {
+			return true
+		}
+
+		// Wildcard match for browser extensions (e.g., "chrome-extension://*")
+		if strings.HasSuffix(allowed, "/*") {
+			prefix := strings.TrimSuffix(allowed, "/*")
+			if strings.HasPrefix(origin, prefix) {
+				return true
+			}
+		}
+	}
+
+	// If no specific origins configured, allow browser extension protocols by default
+	// This maintains backwards compatibility
+	if len(allowedOrigins) == 0 {
+		extensionProtocols := []string{
+			"chrome-extension://",
+			"moz-extension://",
+			"safari-web-extension://",
+			"ms-browser-extension://",
+		}
+		for _, proto := range extensionProtocols {
+			if strings.HasPrefix(origin, proto) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // ReportHandler tracks emails as they are reported, updating the status for the given Result
 func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) {
 	r, err := setupContext(r)
-	w.Header().Set("Access-Control-Allow-Origin", "*") // To allow Chrome extensions (or other pages) to report a campaign without violating CORS
+
+	// Improved CORS handling - validate origin instead of wildcard
+	origin := r.Header.Get("Origin")
+	if ps.isReportOriginAllowed(origin) {
+		if origin != "" {
+			// Set specific origin (not wildcard)
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin") // Important for caching
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+		}
+		// If no origin header, don't set CORS headers (backwards compatibility)
+	} else {
+		// Log suspicious/unauthorized origin
+		log.WithFields(logrus.Fields{
+			"origin":   origin,
+			"endpoint": "/report",
+			"ip":       r.RemoteAddr,
+		}).Warn("Report request from unauthorized origin")
+		// Don't set CORS header - browser will block the request
+	}
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if err != nil {
 		// Log the error if it wasn't something we can safely ignore
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
