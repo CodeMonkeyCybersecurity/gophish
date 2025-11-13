@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/validation"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -44,6 +46,18 @@ func (ur *userRequest) Validate(existingUser *models.User) error {
 	case ur.Role == "":
 		return ErrEmptyRole
 	}
+
+	// Input validation: check username for dangerous patterns
+	if err := validation.ValidateLength(ur.Username, validation.MaxNameLength); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+	if err := validation.ValidateNoSQLInjection(ur.Username); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+	if err := validation.ValidateNoXSS(ur.Username); err != nil {
+		return fmt.Errorf("username: %w", err)
+	}
+
 	// Verify that the username isn't already taken. We consider two cases:
 	// * We're creating a new user, in which case any match is a conflict
 	// * We're modifying a user, in which case any match with a different ID is
