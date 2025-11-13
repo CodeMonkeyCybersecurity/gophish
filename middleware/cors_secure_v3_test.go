@@ -38,9 +38,9 @@ func TestCompileOriginPatternV3(t *testing.T) {
 				"https://a.b.c.example.com",
 			},
 			want: map[string]bool{
-				"https://api.v2.example.com":           true,
-				"https://admin.staging.example.com":    true,
-				"https://a.b.c.example.com":            true,
+				"https://api.v2.example.com":        true,
+				"https://admin.staging.example.com": true,
+				"https://a.b.c.example.com":         true,
 			},
 		},
 		{
@@ -102,11 +102,11 @@ func TestCORSMiddleware(t *testing.T) {
 	}))
 
 	tests := []struct {
-		name         string
-		origin       string
-		method       string
-		wantAllowed  bool
-		wantStatus   int
+		name        string
+		origin      string
+		method      string
+		wantAllowed bool
+		wantStatus  int
 	}{
 		{
 			name:        "exact match allowed",

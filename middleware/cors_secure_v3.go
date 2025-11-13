@@ -33,12 +33,12 @@ type cacheEntry struct {
 // originCache is an LRU cache with TTL for origin validation
 type originCache struct {
 	sync.RWMutex
-	cache    map[string]*list.Element
-	lruList  *list.List
-	maxSize  int
-	ttl      time.Duration
-	hits     int64
-	misses   int64
+	cache   map[string]*list.Element
+	lruList *list.List
+	maxSize int
+	ttl     time.Duration
+	hits    int64
+	misses  int64
 }
 
 var globalOriginCache *originCache

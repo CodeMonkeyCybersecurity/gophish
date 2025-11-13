@@ -15,10 +15,10 @@ import (
 	"fmt"
 	"net/http"
 
+	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/monitoring"
-	log "github.com/gophish/gophish/logger"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -40,8 +40,8 @@ func SetupHealthCheckBasic(router *mux.Router, db *gorm.DB) {
 			}
 			return nil
 		},
-		MaxGoroutines: 5000,  // Alert if goroutines exceed 5000
-		MaxMemoryMB:   1024,  // Alert if memory exceeds 1GB
+		MaxGoroutines: 5000, // Alert if goroutines exceed 5000
+		MaxMemoryMB:   1024, // Alert if memory exceeds 1GB
 	}
 
 	// Register health check endpoint

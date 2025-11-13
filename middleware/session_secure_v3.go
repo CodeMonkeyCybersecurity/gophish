@@ -10,15 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gophish/gophish/models"
 	log "github.com/gophish/gophish/logger"
+	"github.com/gophish/gophish/models"
 	"github.com/gorilla/sessions"
 )
 
 // Store contains the session information for the request
 // This will be initialized by InitSessionStore()
 var (
-	Store     *sessions.CookieStore
+	Store      *sessions.CookieStore
 	storeMutex sync.RWMutex
 	initOnce   sync.Once
 	initErr    error

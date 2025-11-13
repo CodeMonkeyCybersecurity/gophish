@@ -627,7 +627,7 @@ func GetCommonPasswordStats() map[string]interface{} {
 	defer commonPasswordSet.RUnlock()
 
 	return map[string]interface{}{
-		"loaded":        commonPasswordSet.loaded,
+		"loaded":         commonPasswordSet.loaded,
 		"password_count": len(commonPasswordSet.passwords),
 	}
 }
