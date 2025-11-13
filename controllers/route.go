@@ -179,6 +179,7 @@ type templateParams struct {
 	Token        string
 	Version      string
 	ModifySystem bool
+	CSPNonce     string
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -187,12 +188,14 @@ func newTemplateParams(r *http.Request) templateParams {
 	user := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
 	modifySystem, _ := user.HasPermission(models.PermissionModifySystem)
+	cspNonce, _ := ctx.Get(r, "csp_nonce").(string)
 	return templateParams{
 		Token:        csrf.Token(r),
 		User:         user,
 		ModifySystem: modifySystem,
 		Version:      config.Version,
 		Flashes:      session.Flashes(),
+		CSPNonce:     cspNonce,
 	}
 }
 
@@ -309,12 +312,14 @@ func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request) {
 func (as *AdminServer) handleInvalidLogin(w http.ResponseWriter, r *http.Request, message string) {
 	session := ctx.Get(r, "session").(*sessions.Session)
 	Flash(w, r, "danger", message)
+	cspNonce, _ := ctx.Get(r, "csp_nonce").(string)
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User     models.User
+		Title    string
+		Flashes  []interface{}
+		Token    string
+		CSPNonce string
+	}{Title: "Login", Token: csrf.Token(r), CSPNonce: cspNonce}
 	params.Flashes = session.Flashes()
 	session.Save(r, w)
 	templates := template.New("template")
@@ -355,12 +360,14 @@ func (as *AdminServer) Impersonate(w http.ResponseWriter, r *http.Request) {
 // Login handles the authentication flow for a user. If credentials are valid,
 // a session is created
 func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
+	cspNonce, _ := ctx.Get(r, "csp_nonce").(string)
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User     models.User
+		Title    string
+		Flashes  []interface{}
+		Token    string
+		CSPNonce string
+	}{Title: "Login", Token: csrf.Token(r), CSPNonce: cspNonce}
 	session := ctx.Get(r, "session").(*sessions.Session)
 	switch {
 	case r.Method == "GET":
