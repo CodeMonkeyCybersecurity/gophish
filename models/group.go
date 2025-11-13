@@ -7,7 +7,7 @@ import (
 	"time"
 
 	log "github.com/gophish/gophish/logger"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,7 +18,7 @@ type Group struct {
 	UserId       int64     `json:"-"`
 	Name         string    `json:"name"`
 	ModifiedDate time.Time `json:"modified_date"`
-	Targets      []Target  `json:"targets" sql:"-"`
+	Targets      []Target  `json:"targets" gorm:"-"`
 }
 
 // GroupSummaries is a struct representing the overview of Groups.
@@ -319,7 +319,15 @@ func insertTargetIntoGroup(tx *gorm.DB, t Target, gid int64) error {
 		}).Error("Invalid email")
 		return err
 	}
-	err := tx.Where(t).FirstOrCreate(&t).Error
+	// Use explicit Where clause to avoid GORM v2 "WHERE conditions required" error
+	// Assign sets attributes regardless of whether the record exists or not
+	err := tx.Where("email = ?", t.Email).Assign(Target{
+		BaseRecipient: BaseRecipient{
+			FirstName: t.FirstName,
+			LastName:  t.LastName,
+			Position:  t.Position,
+		},
+	}).FirstOrCreate(&t).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"email": t.Email,
