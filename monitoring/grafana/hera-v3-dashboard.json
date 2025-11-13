@@ -1,0 +1,415 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "hera-v3",
+    "title": "Gophish HERA V3 Security Metrics",
+    "tags": ["gophish", "security", "hera"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d"]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "graph",
+        "title": "CORS Request Rate",
+        "targets": [
+          {
+            "expr": "rate(gophish_cors_requests_total{allowed=\"true\"}[5m])",
+            "legendFormat": "Allowed",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(gophish_cors_requests_total{allowed=\"false\"}[5m])",
+            "legendFormat": "Rejected",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "points": false,
+        "bars": false,
+        "stack": false,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true
+        },
+        "nullPointMode": "null",
+        "tooltip": {"shared": true, "sort": 0, "value_type": "individual"}
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "graph",
+        "title": "CORS Rejection Rate (Last Hour)",
+        "targets": [
+          {
+            "expr": "rate(gophish_cors_requests_total{allowed=\"false\"}[5m])",
+            "legendFormat": "Rejections/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Rejections/sec"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High CORS Rejection Rate",
+          "conditions": [
+            {
+              "evaluator": {"params": [10], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "CORS is rejecting more than 10 requests/sec",
+          "noDataState": "no_data",
+          "for": "5m"
+        },
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 10, "op": "gt", "fill": true, "line": true, "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "graph",
+        "title": "Template Execution Metrics",
+        "targets": [
+          {
+            "expr": "rate(gophish_template_executions_total[5m])",
+            "legendFormat": "Executions/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(gophish_template_errors_total[5m])",
+            "legendFormat": "Errors/sec",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(gophish_template_timeouts_total[5m])",
+            "legendFormat": "Timeouts/sec",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true,
+          "alignAsTable": true
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "graph",
+        "title": "Active Template Goroutines",
+        "targets": [
+          {
+            "expr": "gophish_template_goroutines",
+            "legendFormat": "Active Goroutines",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "Template Goroutine Leak",
+          "conditions": [
+            {
+              "evaluator": {"params": [100], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Template goroutine count exceeds 100 - potential leak",
+          "noDataState": "no_data",
+          "for": "10m"
+        },
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 100, "op": "gt", "fill": true, "line": true, "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "graph",
+        "title": "System Goroutines",
+        "targets": [
+          {
+            "expr": "gophish_goroutines",
+            "legendFormat": "Total Goroutines",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High System Goroutine Count",
+          "conditions": [
+            {
+              "evaluator": {"params": [5000], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "System goroutine count exceeds 5000",
+          "noDataState": "no_data",
+          "for": "10m"
+        },
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 5000, "op": "gt", "fill": true, "line": true, "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "graph",
+        "title": "Memory Usage",
+        "targets": [
+          {
+            "expr": "gophish_memory_mb",
+            "legendFormat": "Memory (MB)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "mbytes", "label": "Memory"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High Memory Usage",
+          "conditions": [
+            {
+              "evaluator": {"params": [1024], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Memory usage exceeds 1GB",
+          "noDataState": "no_data",
+          "for": "10m"
+        },
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "thresholds": [
+          {"value": 1024, "op": "gt", "fill": true, "line": true, "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "type": "graph",
+        "title": "Session Validation Errors",
+        "targets": [
+          {
+            "expr": "rate(gophish_session_validation_errors_total[5m])",
+            "legendFormat": "Errors/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Errors/sec"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "name": "High Session Validation Error Rate",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Session validation errors exceed 5/sec",
+          "noDataState": "no_data",
+          "for": "5m"
+        },
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "type": "graph",
+        "title": "Password Strength Checks",
+        "targets": [
+          {
+            "expr": "rate(gophish_password_checks_total[5m])",
+            "legendFormat": "Checks/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(gophish_weak_passwords_rejected_total[5m])",
+            "legendFormat": "Rejections/sec",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": {
+          "show": true,
+          "values": true,
+          "current": true
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32},
+        "type": "singlestat",
+        "title": "Application Uptime",
+        "targets": [
+          {
+            "expr": "gophish_uptime_seconds",
+            "refId": "A"
+          }
+        ],
+        "format": "s",
+        "valueName": "current",
+        "colorBackground": false,
+        "colorValue": false,
+        "thresholds": "",
+        "sparkline": {
+          "show": false
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 32},
+        "type": "singlestat",
+        "title": "Total CORS Requests",
+        "targets": [
+          {
+            "expr": "sum(gophish_cors_requests_total)",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current",
+        "colorBackground": false,
+        "colorValue": false,
+        "sparkline": {
+          "show": true,
+          "full": true
+        }
+      },
+      {
+        "id": 11,
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32},
+        "type": "singlestat",
+        "title": "Template Executions",
+        "targets": [
+          {
+            "expr": "gophish_template_executions_total",
+            "refId": "A"
+          }
+        ],
+        "format": "short",
+        "valueName": "current",
+        "colorBackground": false,
+        "colorValue": false,
+        "sparkline": {
+          "show": true,
+          "full": true
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 32},
+        "type": "singlestat",
+        "title": "Template Timeout Rate",
+        "targets": [
+          {
+            "expr": "rate(gophish_template_timeouts_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "format": "ops",
+        "valueName": "current",
+        "colorBackground": true,
+        "colorValue": false,
+        "thresholds": "0.5,1",
+        "colors": ["green", "yellow", "red"],
+        "sparkline": {
+          "show": true,
+          "full": true
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    }
+  }
+}
