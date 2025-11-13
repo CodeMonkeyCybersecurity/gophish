@@ -15,13 +15,13 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-// StoreV3 contains the session information for the request (V3 version)
-// This will be initialized by InitSessionStoreV3()
+// Store contains the session information for the request
+// This will be initialized by InitSessionStore()
 var (
-	StoreV3     *sessions.CookieStore
-	storeMutexV3 sync.RWMutex
-	initOnce    sync.Once
-	initErr     error
+	Store     *sessions.CookieStore
+	storeMutex sync.RWMutex
+	initOnce   sync.Once
+	initErr    error
 )
 
 func init() {
@@ -30,19 +30,19 @@ func init() {
 	gob.Register(&models.Flash{})
 }
 
-// InitSessionStoreV3 initializes the session store with provided keys
+// InitSessionStore initializes the session store with provided keys
 // Uses sync.Once to ensure thread-safe single initialization
 // Keys must be provided in base64-encoded format
-func InitSessionStoreV3(signingKey, encryptionKey string) error {
+func InitSessionStore(signingKey, encryptionKey string) error {
 	initOnce.Do(func() {
-		initErr = doInitSessionStoreV3(signingKey, encryptionKey)
+		initErr = doInitSessionStore(signingKey, encryptionKey)
 	})
 	return initErr
 }
 
-// doInitSessionStoreV3 performs the actual session store initialization
+// doInitSessionStore performs the actual session store initialization
 // This is called exactly once by sync.Once
-func doInitSessionStoreV3(signingKey, encryptionKey string) error {
+func doInitSessionStore(signingKey, encryptionKey string) error {
 	var signingKeyBytes, encryptionKeyBytes []byte
 	var err error
 
@@ -75,22 +75,22 @@ func doInitSessionStoreV3(signingKey, encryptionKey string) error {
 	}
 
 	// No mutex needed here - sync.Once guarantees single execution
-	StoreV3 = sessions.NewCookieStore(signingKeyBytes, encryptionKeyBytes)
+	Store = sessions.NewCookieStore(signingKeyBytes, encryptionKeyBytes)
 
 	// Secure cookie configuration
-	StoreV3.Options.HttpOnly = true
-	StoreV3.Options.Secure = true // Will be updated based on TLS config
-	StoreV3.Options.SameSite = http.SameSiteStrictMode
-	StoreV3.Options.Path = "/"
-	StoreV3.MaxAge(86400 * 5) // 5 days
+	Store.Options.HttpOnly = true
+	Store.Options.Secure = true // Will be updated based on TLS config
+	Store.Options.SameSite = http.SameSiteStrictMode
+	Store.Options.Path = "/"
+	Store.MaxAge(86400 * 5) // 5 days
 
-	log.Info("Session store V3 initialized with secure configuration")
+	log.Info("Session store initialized with secure configuration")
 	return nil
 }
 
-// InitSessionStoreWithWarningV3 initializes session store but allows generating keys
+// InitSessionStoreWithWarning initializes session store but allows generating keys
 // This should only be used for development/testing, never in production
-func InitSessionStoreWithWarningV3(signingKey, encryptionKey string) error {
+func InitSessionStoreWithWarning(signingKey, encryptionKey string) error {
 	if signingKey == "" || encryptionKey == "" {
 		log.Error("=" + strings.Repeat("=", 70))
 		log.Error("CRITICAL SECURITY WARNING: Session keys not configured!")
@@ -109,7 +109,7 @@ func InitSessionStoreWithWarningV3(signingKey, encryptionKey string) error {
 		log.Error("=" + strings.Repeat("=", 70))
 
 		// Generate temporary keys
-		sig, enc, err := GenerateSessionKeysBytesV3()
+		sig, enc, err := GenerateSessionKeysBytes()
 		if err != nil {
 			return fmt.Errorf("failed to generate temporary session keys: %v", err)
 		}
@@ -117,13 +117,13 @@ func InitSessionStoreWithWarningV3(signingKey, encryptionKey string) error {
 		encryptionKey = base64.StdEncoding.EncodeToString(enc)
 	}
 
-	return InitSessionStoreV3(signingKey, encryptionKey)
+	return InitSessionStore(signingKey, encryptionKey)
 }
 
-// GenerateSessionKeysV3 generates new session keys for configuration
+// GenerateSessionKeys generates new session keys for configuration
 // Returns base64-encoded keys suitable for config.json
-func GenerateSessionKeysV3() (signing, encryption string, err error) {
-	signingBytes, encryptionBytes, err := GenerateSessionKeysBytesV3()
+func GenerateSessionKeys() (signing, encryption string, err error) {
+	signingBytes, encryptionBytes, err := GenerateSessionKeysBytes()
 	if err != nil {
 		return "", "", err
 	}
@@ -133,8 +133,8 @@ func GenerateSessionKeysV3() (signing, encryption string, err error) {
 		nil
 }
 
-// GenerateSessionKeysBytesV3 generates raw session key bytes
-func GenerateSessionKeysBytesV3() (signing, encryption []byte, err error) {
+// GenerateSessionKeysBytes generates raw session key bytes
+func GenerateSessionKeysBytes() (signing, encryption []byte, err error) {
 	signingKey := make([]byte, 64)
 	encryptionKey := make([]byte, 32)
 
@@ -149,37 +149,37 @@ func GenerateSessionKeysBytesV3() (signing, encryption []byte, err error) {
 	return signingKey, encryptionKey, nil
 }
 
-// UpdateStoreOptionsV3 updates Store options based on TLS configuration
+// UpdateStoreOptions updates Store options based on TLS configuration
 // This should be called after TLS configuration is determined
-func UpdateStoreOptionsV3(useTLS bool) error {
-	storeMutexV3.Lock()
-	defer storeMutexV3.Unlock()
+func UpdateStoreOptions(useTLS bool) error {
+	storeMutex.Lock()
+	defer storeMutex.Unlock()
 
-	if StoreV3 == nil {
+	if Store == nil {
 		return fmt.Errorf("session store not initialized")
 	}
 
-	StoreV3.Options.Secure = useTLS
+	Store.Options.Secure = useTLS
 	log.Infof("Updated session cookie Secure flag to: %v", useTLS)
 
 	return nil
 }
 
-// GetStoreOptionsV3 returns current store options (for testing/debugging)
-func GetStoreOptionsV3() *sessions.Options {
-	storeMutexV3.RLock()
-	defer storeMutexV3.RUnlock()
+// GetStoreOptions returns current store options (for testing/debugging)
+func GetStoreOptions() *sessions.Options {
+	storeMutex.RLock()
+	defer storeMutex.RUnlock()
 
-	if StoreV3 == nil {
+	if Store == nil {
 		return nil
 	}
 
-	return StoreV3.Options
+	return Store.Options
 }
 
-// ValidateSessionKeysV3 validates that keys are properly formatted
+// ValidateSessionKeys validates that keys are properly formatted
 // Returns error if keys are invalid
-func ValidateSessionKeysV3(signingKey, encryptionKey string) error {
+func ValidateSessionKeys(signingKey, encryptionKey string) error {
 	if signingKey == "" {
 		return fmt.Errorf("signing key cannot be empty")
 	}
@@ -210,14 +210,14 @@ func ValidateSessionKeysV3(signingKey, encryptionKey string) error {
 
 // GetSessionMetrics returns session-related metrics
 func GetSessionMetrics() map[string]interface{} {
-	storeMutexV3.RLock()
-	defer storeMutexV3.RUnlock()
+	storeMutex.RLock()
+	defer storeMutex.RUnlock()
 
 	return map[string]interface{}{
-		"initialized": StoreV3 != nil,
+		"initialized": Store != nil,
 		"max_age":     86400 * 5, // 5 days
 		"http_only":   true,
-		"secure":      StoreV3 != nil && StoreV3.Options.Secure,
+		"secure":      Store != nil && Store.Options.Secure,
 		"same_site":   "Strict",
 	}
 }
@@ -227,5 +227,5 @@ func GetSessionMetrics() map[string]interface{} {
 func ResetInitOnce() {
 	initOnce = sync.Once{}
 	initErr = nil
-	StoreV3 = nil
+	Store = nil
 }

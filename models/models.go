@@ -13,12 +13,11 @@ import (
 	"github.com/gophish/gophish/config"
 
 	log "github.com/gophish/gophish/logger"
+	_ "github.com/lib/pq" // PostgreSQL driver for goose
 	mysqlDriver "gorm.io/driver/mysql"
-	postgresDriver "gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	_ "github.com/lib/pq" // PostgreSQL driver for goose
 )
 
 var db *gorm.DB

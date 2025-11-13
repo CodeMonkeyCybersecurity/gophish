@@ -9,8 +9,6 @@ import (
 
 // Enhanced password policy constants
 const (
-	MinPasswordLength   = 12  // Increased from 8
-	MaxPasswordLength   = 128
 	MinPasswordEntropy  = 40.0 // bits
 	PasswordHistorySize = 5    // Remember last 5 passwords
 )
@@ -18,7 +16,6 @@ const (
 // Additional error types
 var (
 	ErrPasswordTooWeak = errors.New("password does not meet security requirements")
-	ErrPasswordCommon  = errors.New("password is too common")
 )
 
 // CheckPasswordPolicyEnhanced performs enhanced password policy validation

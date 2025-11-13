@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestCalculatePasswordEntropyV3(t *testing.T) {
+func TestCalculatePasswordEntropy(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
@@ -33,7 +33,7 @@ func TestCalculatePasswordEntropyV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entropy := CalculatePasswordEntropyV3(tt.password)
+			entropy := CalculatePasswordEntropy(tt.password)
 			if entropy < tt.minEntropy {
 				t.Errorf("entropy = %v, want >= %v", entropy, tt.minEntropy)
 			}
@@ -41,7 +41,7 @@ func TestCalculatePasswordEntropyV3(t *testing.T) {
 	}
 }
 
-func TestCheckPasswordStrengthV3(t *testing.T) {
+func TestCheckPasswordStrength(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
@@ -66,7 +66,7 @@ func TestCheckPasswordStrengthV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			strength := CheckPasswordStrengthV3(tt.password)
+			strength := CheckPasswordStrength(tt.password)
 			if strength.Score < tt.minScore {
 				t.Errorf("score = %v, want >= %v", strength.Score, tt.minScore)
 			}
@@ -74,7 +74,7 @@ func TestCheckPasswordStrengthV3(t *testing.T) {
 	}
 }
 
-func TestExecuteTemplateSafeV3(t *testing.T) {
+func TestExecuteTemplateSafe(t *testing.T) {
 	tests := []struct {
 		name    string
 		text    string
@@ -109,15 +109,15 @@ func TestExecuteTemplateSafeV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ExecuteTemplateSafeV3(tt.text, tt.data)
+			_, err := ExecuteTemplateSafe(tt.text, tt.data)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ExecuteTemplateSafeV3() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ExecuteTemplateSafe() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestExecuteTemplateWithContextV3_Timeout(t *testing.T) {
+func TestExecuteTemplateWithContextTimeout(t *testing.T) {
 	// Template that would take too long
 	text := "{{range $i := .Items}}{{.}}{{end}}"
 	data := map[string]interface{}{
@@ -127,7 +127,7 @@ func TestExecuteTemplateWithContextV3_Timeout(t *testing.T) {
 	ctx := context.Background()
 	start := time.Now()
 
-	_, err := ExecuteTemplateWithContextV3(ctx, text, data)
+	_, err := ExecuteTemplateWithContext(ctx, text, data)
 
 	elapsed := time.Since(start)
 
@@ -141,7 +141,7 @@ func TestExecuteTemplateWithContextV3_Timeout(t *testing.T) {
 	}
 }
 
-func TestValidateTemplateSafeV3(t *testing.T) {
+func TestValidateTemplateSafe(t *testing.T) {
 	tests := []struct {
 		name    string
 		text    string
@@ -181,9 +181,9 @@ func TestValidateTemplateSafeV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateTemplateSafeV3(tt.text)
+			err := ValidateTemplateSafe(tt.text)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateTemplateSafeV3() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateTemplateSafe() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -218,7 +218,7 @@ func TestGetTemplateLimiter(t *testing.T) {
 	}
 }
 
-func TestExecuteTemplateWithRateLimitV3(t *testing.T) {
+func TestExecuteTemplateWithRateLimit(t *testing.T) {
 	userID := int64(456)
 	text := "Hello {{.Name}}"
 	data := map[string]string{"Name": "World"}
@@ -227,14 +227,14 @@ func TestExecuteTemplateWithRateLimitV3(t *testing.T) {
 
 	// First few requests should succeed (within burst)
 	for i := 0; i < 5; i++ {
-		_, err := ExecuteTemplateWithRateLimitV3(ctx, text, data, userID)
+		_, err := ExecuteTemplateWithRateLimit(ctx, text, data, userID)
 		if err != nil {
 			t.Errorf("request %d failed: %v", i+1, err)
 		}
 	}
 
 	// Next request should fail (burst exhausted)
-	_, err := ExecuteTemplateWithRateLimitV3(ctx, text, data, userID)
+	_, err := ExecuteTemplateWithRateLimit(ctx, text, data, userID)
 	if err == nil {
 		t.Error("expected rate limit error, got nil")
 	}
@@ -277,9 +277,9 @@ letmein
 
 	for _, tt := range tests {
 		t.Run(tt.password, func(t *testing.T) {
-			got := isCommonPasswordV3(tt.password)
+			got := isCommonPassword(tt.password)
 			if got != tt.want {
-				t.Errorf("isCommonPasswordV3(%q) = %v, want %v", tt.password, got, tt.want)
+				t.Errorf("isCommonPassword(%q) = %v, want %v", tt.password, got, tt.want)
 			}
 		})
 	}
@@ -307,7 +307,7 @@ func TestGetTemplateMetrics(t *testing.T) {
 	}
 }
 
-func BenchmarkExecuteTemplateSafeV3(b *testing.B) {
+func BenchmarkExecuteTemplateSafe(b *testing.B) {
 	text := "Hello {{.FirstName}} {{.LastName}}"
 	data := map[string]string{
 		"FirstName": "John",
@@ -316,14 +316,14 @@ func BenchmarkExecuteTemplateSafeV3(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := ExecuteTemplateSafeV3(text, data)
+		_, err := ExecuteTemplateSafe(text, data)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkCheckPasswordStrengthV3(b *testing.B) {
+func BenchmarkCheckPasswordStrength(b *testing.B) {
 	passwords := []string{
 		"password",
 		"Password123",
@@ -332,6 +332,6 @@ func BenchmarkCheckPasswordStrengthV3(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = CheckPasswordStrengthV3(passwords[i%len(passwords)])
+		_ = CheckPasswordStrength(passwords[i%len(passwords)])
 	}
 }

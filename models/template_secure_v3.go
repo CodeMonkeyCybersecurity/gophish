@@ -33,7 +33,7 @@ const (
 	DefaultCommonPasswordsPath = "data/common-passwords.txt"
 )
 
-// V3 ENHANCEMENT: Goroutine monitoring
+// Goroutine monitoring counters for template execution
 var (
 	activeTemplateGoroutines int64
 	totalTemplateTimeouts    int64
@@ -41,7 +41,7 @@ var (
 	totalTemplateErrors      int64
 )
 
-// V3 ENHANCEMENT: Per-user rate limiting
+// Per-user rate limiting for template execution
 var (
 	templateLimiters = struct {
 		sync.RWMutex
@@ -51,7 +51,7 @@ var (
 	}
 )
 
-// V3 ENHANCEMENT: File-based common password list
+// File-based common password list (loaded lazily)
 var (
 	commonPasswordSet = struct {
 		sync.RWMutex
@@ -62,9 +62,9 @@ var (
 	}
 )
 
-// AllowedTemplateFuncsV3 returns the safe set of functions available in templates
-// NOTE: Limited set to prevent code execution via template injection
-func AllowedTemplateFuncsV3() template.FuncMap {
+// AllowedTemplateFuncs returns the safe set of functions available in templates.
+// NOTE: Limited set to prevent code execution via template injection.
+func AllowedTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
 		// String functions - safe
 		"lower": strings.ToLower,
@@ -89,11 +89,11 @@ func AllowedTemplateFuncsV3() template.FuncMap {
 	}
 }
 
-// ExecuteTemplateSafeV3 executes a template with safety controls
-// Uses text/template (required for phishing emails) but with restrictions
-func ExecuteTemplateSafeV3(text string, data interface{}) (string, error) {
+// ExecuteTemplateSafe executes a template with safety controls using text/template
+// (required for phishing emails) but with additional restrictions.
+func ExecuteTemplateSafe(text string, data interface{}) (string, error) {
 	// Check template complexity before execution
-	if err := checkTemplateComplexityV3(text); err != nil {
+	if err := checkTemplateComplexity(text); err != nil {
 		return "", err
 	}
 
@@ -104,14 +104,14 @@ func ExecuteTemplateSafeV3(text string, data interface{}) (string, error) {
 	// html/template would escape HTML tags, breaking phishing templates
 	//
 	// MITIGATIONS:
-	// 1. Limited function set (AllowedTemplateFuncsV3)
-	// 2. Timeout protection (ExecuteTemplateWithContextV3)
-	// 3. Complexity limits (checkTemplateComplexityV3)
-	// 4. Pattern validation (ValidateTemplateSafeV3)
-	// 5. Rate limiting (ExecuteTemplateWithRateLimitV3)
-	// 6. Goroutine monitoring (V3 enhancement)
+	// 1. Limited function set (AllowedTemplateFuncs)
+	// 2. Timeout protection (ExecuteTemplateWithContext)
+	// 3. Complexity limits (checkTemplateComplexity)
+	// 4. Pattern validation (ValidateTemplateSafe)
+	// 5. Rate limiting (ExecuteTemplateWithRateLimit)
+	// 6. Goroutine monitoring
 	tmpl, err := template.New("template").
-		Funcs(AllowedTemplateFuncsV3()).
+		Funcs(AllowedTemplateFuncs()).
 		Option("missingkey=error"). // Fail on missing template variables
 		Parse(text)
 	if err != nil {
@@ -128,9 +128,8 @@ func ExecuteTemplateSafeV3(text string, data interface{}) (string, error) {
 	return buff.String(), nil
 }
 
-// ExecuteTemplateWithContextV3 executes template with timeout protection and monitoring
-// V3 ENHANCEMENT: Goroutine monitoring and leak detection
-func ExecuteTemplateWithContextV3(ctx context.Context, text string, data interface{}) (string, error) {
+// ExecuteTemplateWithContext executes template with timeout protection and monitoring.
+func ExecuteTemplateWithContext(ctx context.Context, text string, data interface{}) (string, error) {
 	// Increment total executions counter
 	atomic.AddInt64(&totalTemplateExecutions, 1)
 
@@ -164,7 +163,7 @@ func ExecuteTemplateWithContextV3(ctx context.Context, text string, data interfa
 			}
 		}()
 
-		output, err := ExecuteTemplateSafeV3(text, data)
+		output, err := ExecuteTemplateSafe(text, data)
 
 		// Try to send result, but don't block if context already cancelled
 		select {
@@ -204,7 +203,7 @@ func ExecuteTemplateWithContextV3(ctx context.Context, text string, data interfa
 	}
 }
 
-// V3 ENHANCEMENT: GetTemplateLimiter gets or creates rate limiter for user
+// GetTemplateLimiter gets or creates a rate limiter for a specific user.
 func GetTemplateLimiter(userID int64) *rate.Limiter {
 	templateLimiters.RLock()
 	limiter, exists := templateLimiters.limiters[userID]
@@ -229,8 +228,8 @@ func GetTemplateLimiter(userID int64) *rate.Limiter {
 	return limiter
 }
 
-// V3 ENHANCEMENT: ExecuteTemplateWithRateLimitV3 adds rate limiting
-func ExecuteTemplateWithRateLimitV3(ctx context.Context, text string, data interface{}, userID int64) (string, error) {
+// ExecuteTemplateWithRateLimit adds rate limiting before executing a template.
+func ExecuteTemplateWithRateLimit(ctx context.Context, text string, data interface{}, userID int64) (string, error) {
 	limiter := GetTemplateLimiter(userID)
 
 	if !limiter.Allow() {
@@ -238,11 +237,11 @@ func ExecuteTemplateWithRateLimitV3(ctx context.Context, text string, data inter
 		return "", fmt.Errorf("template execution rate limit exceeded (max 10 per minute)")
 	}
 
-	return ExecuteTemplateWithContextV3(ctx, text, data)
+	return ExecuteTemplateWithContext(ctx, text, data)
 }
 
-// checkTemplateComplexityV3 validates template size and complexity
-func checkTemplateComplexityV3(text string) error {
+// checkTemplateComplexity validates template size and complexity.
+func checkTemplateComplexity(text string) error {
 	if len(text) > MaxTemplateSize {
 		return fmt.Errorf("template exceeds maximum size of %d bytes", MaxTemplateSize)
 	}
@@ -268,11 +267,11 @@ func checkTemplateComplexityV3(text string) error {
 	return nil
 }
 
-// ValidateTemplateSafeV3 validates templates for security issues
-// Returns error if template contains dangerous patterns
-func ValidateTemplateSafeV3(text string) error {
+// ValidateTemplateSafe validates templates for security issues and returns an error
+// if a template contains dangerous patterns.
+func ValidateTemplateSafe(text string) error {
 	// Check for truly dangerous patterns only
-	// V2 FIX: Allow {{define}}, {{template}}, {{block}} for legitimate template composition
+	// Allows {{define}}, {{template}}, {{block}} for legitimate template composition
 	dangerousPatterns := []string{
 		"{{call",    // Function calls - dangerous
 		".Call",     // Reflection method calls
@@ -291,7 +290,7 @@ func ValidateTemplateSafeV3(text string) error {
 	}
 
 	// Check complexity
-	if err := checkTemplateComplexityV3(text); err != nil {
+	if err := checkTemplateComplexity(text); err != nil {
 		return err
 	}
 
@@ -319,7 +318,7 @@ func ValidateTemplateSafeV3(text string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	_, err = ExecuteTemplateWithContextV3(ctx, text, ptx)
+	_, err = ExecuteTemplateWithContext(ctx, text, ptx)
 	if err != nil {
 		return fmt.Errorf("template validation failed: %v", err)
 	}
@@ -327,7 +326,7 @@ func ValidateTemplateSafeV3(text string) error {
 	return nil
 }
 
-// V3 ENHANCEMENT: GetTemplateMetrics returns template execution metrics
+// GetTemplateMetrics returns template execution metrics for monitoring.
 func GetTemplateMetrics() map[string]interface{} {
 	return map[string]interface{}{
 		"active_goroutines":   atomic.LoadInt64(&activeTemplateGoroutines),
@@ -339,7 +338,7 @@ func GetTemplateMetrics() map[string]interface{} {
 	}
 }
 
-// V3 ENHANCEMENT: LoadCommonPasswords loads common passwords from file
+// LoadCommonPasswords loads common passwords from file for entropy checks.
 func LoadCommonPasswords(filepath string) error {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -370,9 +369,9 @@ func LoadCommonPasswords(filepath string) error {
 	return nil
 }
 
-// CalculatePasswordEntropyV3 calculates Shannon entropy of password
-// This measures the actual unpredictability based on character distribution
-func CalculatePasswordEntropyV3(password string) float64 {
+// CalculatePasswordEntropy calculates Shannon entropy of a password based on
+// the actual character distribution.
+func CalculatePasswordEntropy(password string) float64 {
 	if len(password) == 0 {
 		return 0
 	}
@@ -397,8 +396,9 @@ func CalculatePasswordEntropyV3(password string) float64 {
 	return entropyPerChar * length
 }
 
-// CalculateIdealPasswordEntropyV3 calculates theoretical maximum entropy
-func CalculateIdealPasswordEntropyV3(password string) float64 {
+// CalculateIdealPasswordEntropy calculates the theoretical maximum entropy for
+// a password with the discovered character classes.
+func CalculateIdealPasswordEntropy(password string) float64 {
 	if len(password) == 0 {
 		return 0
 	}
@@ -440,8 +440,8 @@ func CalculateIdealPasswordEntropyV3(password string) float64 {
 	return math.Log2(float64(charsetSize)) * float64(len(password))
 }
 
-// PasswordStrengthV3 represents password strength analysis
-type PasswordStrengthV3 struct {
+// PasswordStrength represents password strength analysis results.
+type PasswordStrength struct {
 	Length        int
 	HasUpper      bool
 	HasLower      bool
@@ -454,9 +454,9 @@ type PasswordStrengthV3 struct {
 	Feedback      []string
 }
 
-// CheckPasswordStrengthV3 analyzes password strength
-func CheckPasswordStrengthV3(password string) PasswordStrengthV3 {
-	strength := PasswordStrengthV3{
+// CheckPasswordStrength analyzes password strength and returns scoring data.
+func CheckPasswordStrength(password string) PasswordStrength {
+	strength := PasswordStrength{
 		Length:   len(password),
 		Feedback: []string{},
 	}
@@ -476,20 +476,20 @@ func CheckPasswordStrengthV3(password string) PasswordStrengthV3 {
 	}
 
 	// Calculate both actual and ideal entropy
-	strength.ActualEntropy = CalculatePasswordEntropyV3(password)
-	strength.IdealEntropy = CalculateIdealPasswordEntropyV3(password)
+	strength.ActualEntropy = CalculatePasswordEntropy(password)
+	strength.IdealEntropy = CalculateIdealPasswordEntropy(password)
 
 	// Check against common passwords
-	strength.IsCommon = isCommonPasswordV3(password)
+	strength.IsCommon = isCommonPassword(password)
 
 	// Calculate score and feedback
-	strength.Score, strength.Feedback = calculatePasswordScoreV3(strength)
+	strength.Score, strength.Feedback = calculatePasswordScore(strength)
 
 	return strength
 }
 
-// calculatePasswordScoreV3 calculates password score (0-4) and provides feedback
-func calculatePasswordScoreV3(strength PasswordStrengthV3) (int, []string) {
+// calculatePasswordScore calculates password score (0-4) and provides feedback.
+func calculatePasswordScore(strength PasswordStrength) (int, []string) {
 	score := 0
 	feedback := []string{}
 
@@ -566,8 +566,9 @@ func calculatePasswordScoreV3(strength PasswordStrengthV3) (int, []string) {
 	return score, feedback
 }
 
-// V3 ENHANCEMENT: isCommonPasswordV3 checks against loaded password list
-func isCommonPasswordV3(password string) bool {
+// isCommonPassword checks the supplied password against the loaded list and
+// fallbacks to a hard-coded list when necessary.
+func isCommonPassword(password string) bool {
 	lowerPass := strings.ToLower(password)
 
 	// Check loaded password list first

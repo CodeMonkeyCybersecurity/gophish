@@ -71,9 +71,9 @@ func TestCompileOriginPatternV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			regex, err := compileOriginPatternV3(tt.pattern)
+			regex, err := compileOriginPattern(tt.pattern)
 			if err != nil {
-				t.Fatalf("compileOriginPatternV3() error = %v", err)
+				t.Fatalf("compileOriginPattern() error = %v", err)
 			}
 
 			for origin, want := range tt.want {
@@ -86,8 +86,8 @@ func TestCompileOriginPatternV3(t *testing.T) {
 	}
 }
 
-func TestCORSV3Middleware(t *testing.T) {
-	config := CORSConfigV3{
+func TestCORSMiddleware(t *testing.T) {
+	config := CORSConfig{
 		AllowedOrigins: []string{"https://admin.example.com", "https://*.api.example.com"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 		AllowedHeaders: []string{"Authorization", "Content-Type"},
@@ -96,7 +96,7 @@ func TestCORSV3Middleware(t *testing.T) {
 		MaxCacheSize:   100,
 	}
 
-	handler := CORSV3(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}))
@@ -166,7 +166,7 @@ func TestCORSV3Middleware(t *testing.T) {
 	}
 }
 
-func TestOriginCacheV3(t *testing.T) {
+func TestOriginCache(t *testing.T) {
 	// Initialize cache
 	initOriginCache(10, 100*time.Millisecond)
 
@@ -199,15 +199,15 @@ func TestOriginCacheV3(t *testing.T) {
 	}
 }
 
-func TestValidateCORSConfigV3(t *testing.T) {
+func TestValidateCORSConfig(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  CORSConfigV3
+		config  CORSConfig
 		wantErr bool
 	}{
 		{
 			name: "valid config",
-			config: CORSConfigV3{
+			config: CORSConfig{
 				AllowedOrigins: []string{"https://example.com"},
 				AllowedMethods: []string{"GET", "POST"},
 				AllowedHeaders: []string{"Authorization"},
@@ -219,7 +219,7 @@ func TestValidateCORSConfigV3(t *testing.T) {
 		},
 		{
 			name: "multiple wildcards",
-			config: CORSConfigV3{
+			config: CORSConfig{
 				AllowedOrigins: []string{"https://*.*.example.com"},
 				AllowedMethods: []string{"GET"},
 				AllowedHeaders: []string{"Authorization"},
@@ -231,7 +231,7 @@ func TestValidateCORSConfigV3(t *testing.T) {
 		},
 		{
 			name: "no methods",
-			config: CORSConfigV3{
+			config: CORSConfig{
 				AllowedOrigins: []string{"https://example.com"},
 				AllowedMethods: []string{},
 				AllowedHeaders: []string{"Authorization"},
@@ -243,7 +243,7 @@ func TestValidateCORSConfigV3(t *testing.T) {
 		},
 		{
 			name: "cache size too small",
-			config: CORSConfigV3{
+			config: CORSConfig{
 				AllowedOrigins: []string{"https://example.com"},
 				AllowedMethods: []string{"GET"},
 				AllowedHeaders: []string{"Authorization"},
@@ -257,25 +257,25 @@ func TestValidateCORSConfigV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateCORSConfigV3(tt.config)
+			err := ValidateCORSConfig(tt.config)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateCORSConfigV3() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateCORSConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func BenchmarkCORSV3MiddlewareCacheHit(b *testing.B) {
-	config := CORSConfigV3{
+func BenchmarkCORSMiddlewareCacheMiss(b *testing.B) {
+	config := CORSConfig{
 		AllowedOrigins: []string{"https://admin.example.com"},
 		AllowedMethods: []string{"GET"},
 		AllowedHeaders: []string{"Authorization"},
 		MaxAge:         3600,
 		CacheTTL:       5 * time.Minute,
-		MaxCacheSize:   1000,
+		MaxCacheSize:   100,
 	}
 
-	handler := CORSV3(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := CORS(config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

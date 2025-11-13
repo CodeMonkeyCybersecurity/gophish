@@ -28,10 +28,14 @@ func SetupHealthCheckBasic(router *mux.Router, db *gorm.DB) {
 	// Create health check with database connectivity test
 	healthCheck := &monitoring.HealthCheck{
 		DatabaseCheck: func() error {
-			return db.DB().Ping()
+			sqlDB, err := db.DB()
+			if err != nil {
+				return fmt.Errorf("database connection error: %w", err)
+			}
+			return sqlDB.Ping()
 		},
 		SessionStoreCheck: func() error {
-			if middleware.StoreV3 == nil {
+			if middleware.Store == nil {
 				return fmt.Errorf("session store not initialized")
 			}
 			return nil
@@ -59,12 +63,12 @@ func SetupHealthCheckAdvanced(router *mux.Router, db *gorm.DB) {
 
 		// Check session store
 		SessionStoreCheck: func() error {
-			if middleware.StoreV3 == nil {
+			if middleware.Store == nil {
 				return fmt.Errorf("session store not initialized")
 			}
 
 			// Verify session options are configured correctly
-			opts := middleware.GetStoreOptionsV3()
+			opts := middleware.GetStoreOptions()
 			if opts == nil {
 				return fmt.Errorf("session options not available")
 			}
@@ -89,10 +93,14 @@ func SetupMonitoring(router *mux.Router, db *gorm.DB) {
 	// Health check (for load balancers)
 	healthCheck := &monitoring.HealthCheck{
 		DatabaseCheck: func() error {
-			return db.DB().Ping()
+			sqlDB, err := db.DB()
+			if err != nil {
+				return fmt.Errorf("database connection error: %w", err)
+			}
+			return sqlDB.Ping()
 		},
 		SessionStoreCheck: func() error {
-			if middleware.StoreV3 == nil {
+			if middleware.Store == nil {
 				return fmt.Errorf("session store not initialized")
 			}
 			return nil
@@ -134,10 +142,14 @@ func (as *AdminServerExample) SetupRoutes() {
 	// Add V3 monitoring endpoints
 	healthCheck := &monitoring.HealthCheck{
 		DatabaseCheck: func() error {
-			return as.db.DB().Ping()
+			sqlDB, err := as.db.DB()
+			if err != nil {
+				return fmt.Errorf("database connection error: %w", err)
+			}
+			return sqlDB.Ping()
 		},
 		SessionStoreCheck: func() error {
-			if middleware.StoreV3 == nil {
+			if middleware.Store == nil {
 				return fmt.Errorf("session store not initialized")
 			}
 			return nil
@@ -278,7 +290,7 @@ func main() {
     // ... existing initialization ...
 
     // Initialize V3 session store
-    if err := middleware.InitSessionStoreV3(
+    if err := middleware.InitSessionStore(
         config.SessionSigningKey,
         config.SessionEncryptionKey,
     ); err != nil {
@@ -286,7 +298,7 @@ func main() {
     }
 
     // Update session options based on TLS config
-    middleware.UpdateStoreOptionsV3(config.AdminServer.UseTLS)
+    middleware.UpdateStoreOptions(config.AdminServer.UseTLS)
 
     // Load common passwords
     if err := models.LoadCommonPasswords(config.CommonPasswordsFile); err != nil {
@@ -299,10 +311,14 @@ func main() {
     // Add health check
     healthCheck := &monitoring.HealthCheck{
         DatabaseCheck: func() error {
-            return db.DB().Ping()
+            sqlDB, err := db.DB()
+            if err != nil {
+                return fmt.Errorf("database connection error: %w", err)
+            }
+            return sqlDB.Ping()
         },
         SessionStoreCheck: func() error {
-            if middleware.StoreV3 == nil {
+            if middleware.Store == nil {
                 return fmt.Errorf("session store not initialized")
             }
             return nil

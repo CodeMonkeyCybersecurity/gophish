@@ -12,8 +12,8 @@ import (
 	log "github.com/gophish/gophish/logger"
 )
 
-// CORSConfigV3 holds CORS configuration with V3 enhancements
-type CORSConfigV3 struct {
+// CORSConfig holds CORS configuration with enhancements
+type CORSConfig struct {
 	AllowedOrigins []string
 	AllowedMethods []string
 	AllowedHeaders []string
@@ -23,15 +23,15 @@ type CORSConfigV3 struct {
 	MaxCacheSize   int              // Maximum cache entries
 }
 
-// cacheEntryV3 represents a cached origin validation result
-type cacheEntryV3 struct {
+// cacheEntry represents a cached origin validation result
+type cacheEntry struct {
 	origin    string
 	allowed   bool
 	timestamp time.Time
 }
 
-// originCacheV3 is an LRU cache with TTL for origin validation
-type originCacheV3 struct {
+// originCache is an LRU cache with TTL for origin validation
+type originCache struct {
 	sync.RWMutex
 	cache    map[string]*list.Element
 	lruList  *list.List
@@ -41,11 +41,11 @@ type originCacheV3 struct {
 	misses   int64
 }
 
-var globalOriginCache *originCacheV3
+var globalOriginCache *originCache
 
 // initOriginCache initializes the global origin cache
 func initOriginCache(maxSize int, ttl time.Duration) {
-	globalOriginCache = &originCacheV3{
+	globalOriginCache = &originCache{
 		cache:   make(map[string]*list.Element),
 		lruList: list.New(),
 		maxSize: maxSize,
@@ -54,7 +54,7 @@ func initOriginCache(maxSize int, ttl time.Duration) {
 }
 
 // get retrieves an origin from cache, checking TTL
-func (oc *originCacheV3) get(origin string) (bool, bool) {
+func (oc *originCache) get(origin string) (bool, bool) {
 	oc.Lock()
 	defer oc.Unlock()
 
@@ -64,7 +64,7 @@ func (oc *originCacheV3) get(origin string) (bool, bool) {
 		return false, false
 	}
 
-	entry := elem.Value.(*cacheEntryV3)
+	entry := elem.Value.(*cacheEntry)
 
 	// Check TTL
 	if time.Since(entry.timestamp) >= oc.ttl {
@@ -82,14 +82,14 @@ func (oc *originCacheV3) get(origin string) (bool, bool) {
 }
 
 // set adds an origin to cache with LRU eviction
-func (oc *originCacheV3) set(origin string, allowed bool) {
+func (oc *originCache) set(origin string, allowed bool) {
 	oc.Lock()
 	defer oc.Unlock()
 
 	// Check if already exists
 	if elem, found := oc.cache[origin]; found {
 		// Update existing entry
-		entry := elem.Value.(*cacheEntryV3)
+		entry := elem.Value.(*cacheEntry)
 		entry.allowed = allowed
 		entry.timestamp = time.Now()
 		oc.lruList.MoveToFront(elem)
@@ -100,7 +100,7 @@ func (oc *originCacheV3) set(origin string, allowed bool) {
 	if oc.lruList.Len() >= oc.maxSize {
 		oldest := oc.lruList.Back()
 		if oldest != nil {
-			oldEntry := oldest.Value.(*cacheEntryV3)
+			oldEntry := oldest.Value.(*cacheEntry)
 			delete(oc.cache, oldEntry.origin)
 			oc.lruList.Remove(oldest)
 			log.Debugf("CORS cache: Evicted LRU entry for origin: %s", oldEntry.origin)
@@ -108,7 +108,7 @@ func (oc *originCacheV3) set(origin string, allowed bool) {
 	}
 
 	// Add new entry
-	entry := &cacheEntryV3{
+	entry := &cacheEntry{
 		origin:    origin,
 		allowed:   allowed,
 		timestamp: time.Now(),
@@ -118,7 +118,7 @@ func (oc *originCacheV3) set(origin string, allowed bool) {
 }
 
 // clear removes all entries from cache
-func (oc *originCacheV3) clear() {
+func (oc *originCache) clear() {
 	oc.Lock()
 	defer oc.Unlock()
 
@@ -128,7 +128,7 @@ func (oc *originCacheV3) clear() {
 }
 
 // stats returns cache statistics
-func (oc *originCacheV3) stats() map[string]interface{} {
+func (oc *originCache) stats() map[string]interface{} {
 	oc.RLock()
 	defer oc.RUnlock()
 
@@ -148,9 +148,9 @@ func (oc *originCacheV3) stats() map[string]interface{} {
 	}
 }
 
-// DefaultCORSConfigV3 returns secure default CORS configuration for V3
-func DefaultCORSConfigV3() CORSConfigV3 {
-	return CORSConfigV3{
+// DefaultCORSConfig returns secure default CORS configuration
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
 		AllowedOrigins: []string{}, // Empty = no CORS, same-origin only
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Authorization", "Content-Type", "X-Requested-With"},
@@ -161,12 +161,12 @@ func DefaultCORSConfigV3() CORSConfigV3 {
 	}
 }
 
-// compileOriginPatternV3 converts wildcard pattern to regex with V3 enhancements
+// compileOriginPattern converts wildcard pattern to regex with enhanced support
 // Supports:
 //   - Multi-level subdomains: *.example.com matches api.v2.example.com
 //   - Underscores: *.example.com matches admin_console.example.com
 //   - Ports: *.example.com matches admin.example.com:8443
-func compileOriginPatternV3(pattern string) (*regexp.Regexp, error) {
+func compileOriginPattern(pattern string) (*regexp.Regexp, error) {
 	// Escape special regex characters except *
 	escaped := regexp.QuoteMeta(pattern)
 
@@ -211,12 +211,12 @@ func compileOriginPatternV3(pattern string) (*regexp.Regexp, error) {
 	return regex, nil
 }
 
-// CompileCORSConfigV3 compiles wildcard patterns in CORS configuration
+// CompileCORSConfig compiles wildcard patterns in CORS configuration
 // Call this once during initialization
-func CompileCORSConfigV3(config *CORSConfigV3) error {
+func CompileCORSConfig(config *CORSConfig) error {
 	for _, origin := range config.AllowedOrigins {
 		if strings.Contains(origin, "*") {
-			pattern, err := compileOriginPatternV3(origin)
+			pattern, err := compileOriginPattern(origin)
 			if err != nil {
 				return fmt.Errorf("invalid origin pattern %q: %v", origin, err)
 			}
@@ -234,10 +234,10 @@ func CompileCORSConfigV3(config *CORSConfigV3) error {
 	return nil
 }
 
-// CORSV3 returns a middleware that handles CORS with V3 enhancements
-func CORSV3(config CORSConfigV3) func(http.Handler) http.Handler {
+// CORS returns a middleware that handles CORS with origin caching
+func CORS(config CORSConfig) func(http.Handler) http.Handler {
 	// Compile patterns once during middleware setup
-	if err := CompileCORSConfigV3(&config); err != nil {
+	if err := CompileCORSConfig(&config); err != nil {
 		log.Errorf("Failed to compile CORS config: %v", err)
 		// Return middleware that blocks all CORS
 		return func(next http.Handler) http.Handler {
@@ -262,7 +262,7 @@ func CORSV3(config CORSConfigV3) func(http.Handler) http.Handler {
 			}
 
 			// Check if origin is allowed (with caching)
-			allowed := isOriginAllowedV3(origin, config)
+			allowed := isOriginAllowedCached(origin, config)
 
 			if !allowed {
 				// Origin not allowed
@@ -303,8 +303,8 @@ func CORSV3(config CORSConfigV3) func(http.Handler) http.Handler {
 	}
 }
 
-// isOriginAllowedV3 checks if an origin is allowed with LRU caching
-func isOriginAllowedV3(origin string, config CORSConfigV3) bool {
+// isOriginAllowedCached checks if an origin is allowed with LRU caching
+func isOriginAllowedCached(origin string, config CORSConfig) bool {
 	if origin == "" {
 		return false
 	}
@@ -328,7 +328,7 @@ func isOriginAllowedV3(origin string, config CORSConfigV3) bool {
 }
 
 // calculateOriginAllowed performs the actual origin validation
-func calculateOriginAllowed(origin string, config CORSConfigV3) bool {
+func calculateOriginAllowed(origin string, config CORSConfig) bool {
 	// Check exact matches first (faster)
 	for _, allowedOrigin := range config.AllowedOrigins {
 		if !strings.Contains(allowedOrigin, "*") {
@@ -348,9 +348,8 @@ func calculateOriginAllowed(origin string, config CORSConfigV3) bool {
 	return false
 }
 
-// ClearOriginCacheV3 clears the V3 origin validation cache
-// Call this after updating CORS configuration
-func ClearOriginCacheV3() {
+// ClearOriginCache clears the origin validation cache
+func ClearOriginCache() {
 	if globalOriginCache != nil {
 		globalOriginCache.clear()
 	}
@@ -366,8 +365,8 @@ func GetOriginCacheStats() map[string]interface{} {
 	}
 }
 
-// ValidateCORSConfigV3 validates CORS configuration
-func ValidateCORSConfigV3(config CORSConfigV3) error {
+// ValidateCORSConfig validates CORS configuration
+func ValidateCORSConfig(config CORSConfig) error {
 	if len(config.AllowedOrigins) == 0 {
 		// Empty config is valid (no CORS)
 		return nil

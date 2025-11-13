@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func TestGenerateSessionKeysV3(t *testing.T) {
-	signing, encryption, err := GenerateSessionKeysV3()
+func TestGenerateSessionKeys(t *testing.T) {
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
-		t.Fatalf("GenerateSessionKeysV3() error = %v", err)
+		t.Fatalf("GenerateSessionKeys() error = %v", err)
 	}
 
 	// Verify signing key
@@ -36,11 +36,11 @@ func TestGenerateSessionKeysV3(t *testing.T) {
 	}
 }
 
-func TestValidateSessionKeysV3(t *testing.T) {
+func TestValidateSessionKeys(t *testing.T) {
 	// Generate valid keys
-	signing, encryption, err := GenerateSessionKeysV3()
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
-		t.Fatalf("GenerateSessionKeysV3() error = %v", err)
+		t.Fatalf("GenerateSessionKeys() error = %v", err)
 	}
 
 	tests := []struct {
@@ -83,35 +83,35 @@ func TestValidateSessionKeysV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateSessionKeysV3(tt.signing, tt.encryption)
+			err := ValidateSessionKeys(tt.signing, tt.encryption)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateSessionKeysV3() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateSessionKeys() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestInitSessionStoreV3(t *testing.T) {
+func TestInitSessionStore(t *testing.T) {
 	// Reset for testing
 	ResetInitOnce()
 
-	signing, encryption, err := GenerateSessionKeysV3()
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
-		t.Fatalf("GenerateSessionKeysV3() error = %v", err)
+		t.Fatalf("GenerateSessionKeys() error = %v", err)
 	}
 
-	err = InitSessionStoreV3(signing, encryption)
+	err = InitSessionStore(signing, encryption)
 	if err != nil {
-		t.Fatalf("InitSessionStoreV3() error = %v", err)
+		t.Fatalf("InitSessionStore() error = %v", err)
 	}
 
-	if StoreV3 == nil {
-		t.Error("StoreV3 should be initialized")
+	if Store == nil {
+		t.Error("Store should be initialized")
 	}
 
-	options := GetStoreOptionsV3()
+	options := GetStoreOptions()
 	if options == nil {
-		t.Fatal("GetStoreOptionsV3() returned nil")
+		t.Fatal("GetStoreOptions() returned nil")
 	}
 
 	if !options.HttpOnly {
@@ -122,13 +122,13 @@ func TestInitSessionStoreV3(t *testing.T) {
 	}
 }
 
-func TestInitSessionStoreV3_Concurrent(t *testing.T) {
+func TestInitSessionStoreConcurrent(t *testing.T) {
 	// Reset for testing
 	ResetInitOnce()
 
-	signing, encryption, err := GenerateSessionKeysV3()
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
-		t.Fatalf("GenerateSessionKeysV3() error = %v", err)
+		t.Fatalf("GenerateSessionKeys() error = %v", err)
 	}
 
 	// Try to initialize concurrently
@@ -139,7 +139,7 @@ func TestInitSessionStoreV3_Concurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := InitSessionStoreV3(signing, encryption)
+			err := InitSessionStore(signing, encryption)
 			if err != nil {
 				errors <- err
 			}
@@ -151,26 +151,26 @@ func TestInitSessionStoreV3_Concurrent(t *testing.T) {
 
 	// All goroutines should succeed (sync.Once ensures single init)
 	for err := range errors {
-		t.Errorf("concurrent InitSessionStoreV3() error = %v", err)
+		t.Errorf("concurrent InitSessionStore() error = %v", err)
 	}
 
-	if StoreV3 == nil {
-		t.Error("StoreV3 should be initialized after concurrent calls")
+	if Store == nil {
+		t.Error("Store should be initialized after concurrent calls")
 	}
 }
 
-func TestUpdateStoreOptionsV3(t *testing.T) {
+func TestUpdateStoreOptions(t *testing.T) {
 	// Reset for testing
 	ResetInitOnce()
 
-	signing, encryption, err := GenerateSessionKeysV3()
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
-		t.Fatalf("GenerateSessionKeysV3() error = %v", err)
+		t.Fatalf("GenerateSessionKeys() error = %v", err)
 	}
 
-	err = InitSessionStoreV3(signing, encryption)
+	err = InitSessionStore(signing, encryption)
 	if err != nil {
-		t.Fatalf("InitSessionStoreV3() error = %v", err)
+		t.Fatalf("InitSessionStore() error = %v", err)
 	}
 
 	tests := []struct {
@@ -192,12 +192,12 @@ func TestUpdateStoreOptionsV3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := UpdateStoreOptionsV3(tt.useTLS)
+			err := UpdateStoreOptions(tt.useTLS)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("UpdateStoreOptionsV3() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("UpdateStoreOptions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			options := GetStoreOptionsV3()
+			options := GetStoreOptions()
 			if options.Secure != tt.useTLS {
 				t.Errorf("Secure flag = %v, want %v", options.Secure, tt.useTLS)
 			}
@@ -205,23 +205,23 @@ func TestUpdateStoreOptionsV3(t *testing.T) {
 	}
 }
 
-func BenchmarkGenerateSessionKeysV3(b *testing.B) {
+func BenchmarkGenerateSessionKeys(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _, err := GenerateSessionKeysV3()
+		_, _, err := GenerateSessionKeys()
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkValidateSessionKeysV3(b *testing.B) {
-	signing, encryption, err := GenerateSessionKeysV3()
+func BenchmarkValidateSessionKeys(b *testing.B) {
+	signing, encryption, err := GenerateSessionKeys()
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ValidateSessionKeysV3(signing, encryption)
+		_ = ValidateSessionKeys(signing, encryption)
 	}
 }
