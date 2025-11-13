@@ -44,8 +44,8 @@ func (s *ModelsSuite) TearDownTest(c *check.C) {
 	db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Campaign{})
 
 	// Reset users table to default state.
-	db.Not("id", 1).Delete(&User{})
-	db.Model(&User{}).Update("username", "admin")
+	db.Where("id != ?", 1).Delete(&User{})
+	db.Model(&User{}).Where("id = ?", 1).Update("username", "admin")
 }
 
 func (s *ModelsSuite) createCampaignDependencies(ch *check.C, optional ...string) Campaign {
@@ -140,6 +140,6 @@ func resetBenchmark(b *testing.B) {
 	db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&Campaign{})
 
 	// Reset users table to default state.
-	db.Not("id", 1).Delete(User{})
-	db.Model(User{}).Update("username", "admin")
+	db.Where("id != ?", 1).Delete(&User{})
+	db.Model(&User{}).Where("id = ?", 1).Update("username", "admin")
 }

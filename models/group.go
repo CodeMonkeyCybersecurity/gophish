@@ -319,22 +319,29 @@ func insertTargetIntoGroup(tx *gorm.DB, t Target, gid int64) error {
 		}).Error("Invalid email")
 		return err
 	}
-	// Use explicit Where clause to avoid GORM v2 "WHERE conditions required" error
-	// Assign sets attributes regardless of whether the record exists or not
-	err := tx.Where("email = ?", t.Email).Assign(Target{
+	// GORM v2: FirstOrCreate - first arg is WHERE condition, second is attributes to set on create
+	target := Target{
 		BaseRecipient: BaseRecipient{
+			Email: t.Email,
+		},
+	}
+	err := tx.FirstOrCreate(&target, Target{
+		BaseRecipient: BaseRecipient{
+			Email:     t.Email,
 			FirstName: t.FirstName,
 			LastName:  t.LastName,
 			Position:  t.Position,
 		},
-	}).FirstOrCreate(&t).Error
+	}).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"email": t.Email,
 		}).Error(err)
 		return err
 	}
-	err = tx.Save(&GroupTarget{GroupId: gid, TargetId: t.Id}).Error
+	// Use the found/created target ID for the group-target association
+	// Use Create() instead of Save() as GroupTarget has no primary key (GORM v2 requirement)
+	err = tx.Create(&GroupTarget{GroupId: gid, TargetId: target.Id}).Error
 	if err != nil {
 		log.Error(err)
 		return err
