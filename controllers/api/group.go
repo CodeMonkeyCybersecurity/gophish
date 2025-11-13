@@ -7,8 +7,8 @@ import (
 	"time"
 
 	ctx "github.com/gophish/gophish/context"
-	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
+	"github.com/gophish/gophish/util"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 )
@@ -42,7 +42,7 @@ func (as *Server) Groups(w http.ResponseWriter, r *http.Request) {
 		g.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PostGroup(&g)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Error creating group", err)
 			return
 		}
 		JSONResponse(w, g, http.StatusCreated)
@@ -55,8 +55,7 @@ func (as *Server) GroupsSummary(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "GET":
 		gs, err := models.GetGroupSummaries(ctx.Get(r, "user_id").(int64))
 		if err != nil {
-			log.Error(err)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Failed to retrieve group summaries", err)
 			return
 		}
 		JSONResponse(w, gs, http.StatusOK)
@@ -70,7 +69,7 @@ func (as *Server) Group(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	g, err := models.GetGroup(id, ctx.Get(r, "user_id").(int64))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Group not found"}, http.StatusNotFound)
+		util.SafeJSONError(w, r, http.StatusNotFound, "Group not found", err)
 		return
 	}
 	switch {
@@ -79,7 +78,7 @@ func (as *Server) Group(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeleteGroup(&g)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Error deleting group"}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error deleting group", err)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Group deleted successfully!"}, http.StatusOK)
@@ -88,8 +87,7 @@ func (as *Server) Group(w http.ResponseWriter, r *http.Request) {
 		g = models.Group{}
 		err = json.NewDecoder(r.Body).Decode(&g)
 		if err != nil {
-			log.Errorf("error decoding group: %v", err)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			util.SafeJSONError(w, r, http.StatusInternalServerError, "Error decoding group data", err)
 			return
 		}
 		if g.Id != id {
@@ -100,7 +98,7 @@ func (as *Server) Group(w http.ResponseWriter, r *http.Request) {
 		g.UserId = ctx.Get(r, "user_id").(int64)
 		err = models.PutGroup(&g)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			util.SafeJSONError(w, r, http.StatusBadRequest, "Error updating group", err)
 			return
 		}
 		JSONResponse(w, g, http.StatusOK)
@@ -115,7 +113,7 @@ func (as *Server) GroupSummary(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.ParseInt(vars["id"], 0, 64)
 		g, err := models.GetGroupSummary(id, ctx.Get(r, "user_id").(int64))
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Group not found"}, http.StatusNotFound)
+			util.SafeJSONError(w, r, http.StatusNotFound, "Group not found", err)
 			return
 		}
 		JSONResponse(w, g, http.StatusOK)

@@ -244,8 +244,10 @@ func TestModifyWithExistingUsername(t *testing.T) {
 	if w.Code != expected {
 		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
 	}
+	// After ADV-04 error sanitization, the API returns sanitized error messages
+	// to prevent information disclosure, rather than exposing internal validation errors
 	expectedResponse := &models.Response{
-		Message: ErrUsernameTaken.Error(),
+		Message: "Invalid user data",
 		Success: false,
 	}
 	got := &models.Response{}
