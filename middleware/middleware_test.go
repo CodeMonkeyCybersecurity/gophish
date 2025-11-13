@@ -235,4 +235,19 @@ func TestApplySecurityHeaders(t *testing.T) {
 			t.Fatalf("CSP missing required directive %s. Got: %s", directive, csp)
 		}
 	}
+
+	// Verify CSP uses nonce-based approach (ADV-03 security hardening)
+	if !strings.Contains(csp, "nonce-") {
+		t.Fatalf("CSP missing nonce for script-src. Got: %s", csp)
+	}
+
+	// Verify unsafe-eval is NOT present (removed in ADV-03)
+	if strings.Contains(csp, "unsafe-eval") {
+		t.Fatalf("CSP should not contain unsafe-eval. Got: %s", csp)
+	}
+
+	// Verify script-src does not have unsafe-inline (using nonce instead)
+	if strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
+		t.Fatalf("script-src should use nonce instead of unsafe-inline. Got: %s", csp)
+	}
 }

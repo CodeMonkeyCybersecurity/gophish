@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,6 +25,16 @@ var appConfig *config.Config
 // SetConfig sets the configuration for middleware
 func SetConfig(conf *config.Config) {
 	appConfig = conf
+}
+
+// generateCSPNonce generates a cryptographically secure random nonce for CSP
+func generateCSPNonce() (string, error) {
+	nonceBytes := make([]byte, 16)
+	_, err := rand.Read(nonceBytes)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(nonceBytes), nil
 }
 
 // CSRFExceptions is a middleware that prevents CSRF checks on routes listed in
@@ -53,8 +65,16 @@ func Use(handler http.HandlerFunc, mid ...func(http.Handler) http.HandlerFunc) h
 func GetContext(handler http.Handler) http.HandlerFunc {
 	// Set the context here
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Generate CSP nonce for this request
+		nonce, err := generateCSPNonce()
+		if err != nil {
+			http.Error(w, "Error generating security nonce", http.StatusInternalServerError)
+			return
+		}
+		r = ctx.Set(r, "csp_nonce", nonce)
+
 		// Parse the request form
-		err := r.ParseForm()
+		err = r.ParseForm()
 		if err != nil {
 			http.Error(w, "Error parsing request", http.StatusInternalServerError)
 		}
@@ -209,13 +229,27 @@ func RequirePermission(perm string) func(http.Handler) http.HandlerFunc {
 // ApplySecurityHeaders applies comprehensive security headers according to best practices
 func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get CSP nonce from context (generated in GetContext middleware)
+		var scriptNonce string
+		if nonce := ctx.Get(r, "csp_nonce"); nonce != nil {
+			scriptNonce = fmt.Sprintf("'nonce-%s'", nonce.(string))
+		} else {
+			// Fallback to generating nonce if not in context
+			nonce, err := generateCSPNonce()
+			if err == nil {
+				scriptNonce = fmt.Sprintf("'nonce-%s'", nonce)
+				r = ctx.Set(r, "csp_nonce", nonce)
+			}
+		}
+
 		// Content Security Policy - comprehensive protection against XSS
+		// Removed 'unsafe-inline' and 'unsafe-eval' - using nonce-based CSP (ADV-03)
 		cspDirectives := []string{
 			"default-src 'self'",
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval'", // TODO: Remove unsafe-* after audit
-			"style-src 'self' 'unsafe-inline'",
+			fmt.Sprintf("script-src 'self' %s", scriptNonce),
+			"style-src 'self' 'unsafe-inline'", // Keep for inline style attributes
 			"img-src 'self' data: https:",
-			"font-src 'self' data:",
+			"font-src 'self' data: https://fonts.googleapis.com https://fonts.gstatic.com",
 			"connect-src 'self'",
 			"form-action 'self'",
 			"frame-ancestors 'none'",

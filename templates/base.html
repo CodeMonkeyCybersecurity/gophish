@@ -15,7 +15,7 @@
     <link href="/css/dist/gophish.css" rel="stylesheet" type="text/css">
     <link href='https://fonts.googleapis.com/css?family=Roboto:700,500' rel='stylesheet' type='text/css'>
     <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300,600,700' rel='stylesheet' type='text/css'>
-    <script>
+    <script nonce="{{.CSPNonce}}">
         {{if .User}}
     var user = {
         api_key : {{ .User.ApiKey }},
