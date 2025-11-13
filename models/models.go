@@ -1,12 +1,8 @@
 package models
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -18,9 +14,11 @@ import (
 
 	log "github.com/gophish/gophish/logger"
 	mysqlDriver "gorm.io/driver/mysql"
+	postgresDriver "gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	_ "github.com/lib/pq" // PostgreSQL driver for goose
 )
 
 var db *gorm.DB
@@ -76,13 +74,6 @@ type Response struct {
 	Data    interface{} `json:"data"`
 }
 
-// Copy of auth.GenerateSecureKey to prevent cyclic import with auth library
-func generateSecureKey() string {
-	k := make([]byte, 32)
-	io.ReadFull(rand.Reader, k)
-	return fmt.Sprintf("%x", k)
-}
-
 func chooseDBDriver(name, openStr string) goose.DBDriver {
 	d := goose.DBDriver{Name: name, OpenStr: openStr}
 
@@ -90,6 +81,9 @@ func chooseDBDriver(name, openStr string) goose.DBDriver {
 	case "mysql":
 		d.Import = "github.com/go-sql-driver/mysql"
 		d.Dialect = &goose.MySqlDialect{}
+	case "postgres":
+		d.Import = "github.com/lib/pq"
+		d.Dialect = &goose.PostgresDialect{}
 
 	// Default database is sqlite3
 	default:
@@ -153,7 +147,7 @@ func Setup(c *config.Config) error {
 		switch conf.DBName {
 		case "mysql":
 			rootCertPool := x509.NewCertPool()
-			pem, err := ioutil.ReadFile(conf.DBSSLCaPath)
+			pem, err := os.ReadFile(conf.DBSSLCaPath)
 			if err != nil {
 				log.Error(err)
 				return err
@@ -165,9 +159,13 @@ func Setup(c *config.Config) error {
 			mysql.RegisterTLSConfig("ssl_ca", &tls.Config{
 				RootCAs: rootCertPool,
 			})
+		case "postgres":
+			// PostgreSQL handles SSL/TLS through connection string parameters
+			// sslmode=require sslrootcert=/path/to/ca.pem
+			// This is handled in the DBPath connection string
+		default:
 			// Default database is sqlite3, which supports no tls, as connection
 			// is file based
-		default:
 		}
 	}
 
@@ -193,7 +191,7 @@ func Setup(c *config.Config) error {
 		if err == nil {
 			break
 		}
-		if err != nil && i >= MaxDatabaseConnectionAttempts {
+		if i >= MaxDatabaseConnectionAttempts {
 			log.Error(err)
 			return err
 		}
